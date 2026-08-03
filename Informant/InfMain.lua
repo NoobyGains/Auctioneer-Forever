@@ -158,8 +158,16 @@ function split(str, at)
 end
 
 -- utility, so we don't have to maintain multiple copies of this
-function idFromLink( itemLink )
-	return tonumber(strmatch(itemLink, "item:(%d+)"))
+function idFromLink(itemLink)
+	if not itemLink then return nil end
+
+	local itemKey = C_AuctionHouse.GetItemKeyFromItem(ItemLocation:CreateFromItemLink(itemLink))
+	if itemKey and itemKey.itemID and itemKey.itemID > 0 then
+		return itemKey.itemID
+	end
+
+	local id = itemLink:match("item:(%d+)")
+	return tonumber(id)
 end
 
 -- clean up the link to an item string that applies to all characters and all levels
@@ -425,17 +433,29 @@ function getItem(itemLink, static)
 		end
 	end
 
+	-- Intercept quality details 
+	if incompleteFlag and itemLink and C_TradeSkillUI then
+		if C_TradeSkillUI.GetRecipeQualityReagentLink then
+			-- Attempt to unpack real-time quality parameters directly via the link structure
+			local precisionLink = C_TradeSkillUI.GetRecipeQualityReagentLink(itemLink)
+			if precisionLink then
+				local _, _, tierQuality = GetItemInfo(precisionLink)
+				if tierQuality then
+					dataItem.quality = tierQuality
+					incompleteFlag = false -- Validation bypassed successfully
+				end
+			end
+		end
+	end
+
 	if not incompleteFlag then
-		-- only save cache/static if data complete
-		-- TODO: consider caching partial data, with a flag to try to obtain missing data next time?
 		if static then
-			-- we adjusted the static table, if called with static = true
-			-- so save the link info for future calls
 			staticDataLink = itemLink
 		else
 			cache[itemLink] = dataItem
 		end
 	end
+
 	return dataItem
 end
 
@@ -1076,8 +1096,39 @@ function onLoad()
 	--Informant_ScanTooltip:SetScript("OnTooltipAddMoney", OnTooltipAddMoney);
 
 	setupSlidebar()
-end
 
+	--- SECURE HOOKS FOR PROFESSION QUALITY REAGENTS
+    if C_TradeSkillUI and TooltipDataProcessor then
+        TooltipDataProcessor.AddTooltipPostCall(TooltipDataProcessor.AllTypes, function(self, data)
+            if self:IsForbidden() then return end
+            
+            local finalLink = nil
+            
+            -- Check if the game engine passed a valid item hyperlink directly
+            if data and data.type == Enum.TooltipDataType.Item and data.hyperlink then
+                finalLink = data.hyperlink
+            
+            -- Fallback: If it's a placeholder, safely check for unsecret text
+            elseif data and data.lines and data.lines[1] and data.lines[1].leftText then
+                local itemName = data.lines[1].leftText
+                
+                -- Check if itemName exists and is NOT a secret/protected string
+                if itemName and not issecurevariable("itemName") then
+                    -- Safely attempt string comparison and lookup
+                    local success, link = pcall(GetItemInfo, itemName)
+                    if success and link then
+                        finalLink = link
+                    end
+                end
+            end
+            
+            -- 3. If we safely extracted an item identity, append Auctioneer data arrays directly
+            if finalLink and AucAdvanced and AucAdvanced.API and AucAdvanced.API.AppendTooltip then
+                AucAdvanced.API.AppendTooltip(self, finalLink)
+            end
+        end)
+    end
+end
 local ALTCHATLINKTOOLTIP_OPEN
 local function callbackAltChatLinkTooltip(link, text, button, chatFrame)
 	if button == "LeftButton"

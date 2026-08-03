@@ -42,6 +42,16 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 
 	tooltip:SetFrame(frame)
 
+	-- MODERN OVERRIDE: Extract the exact quality link from the frame's data context
+	if frame and frame.GetTooltipData then
+		local tooltipData = frame:GetTooltipData()
+		if tooltipData and tooltipData.type == Enum.TooltipDataType.Item then
+			if tooltipData.hyperlink then
+				link = tooltipData.hyperlink
+			end
+		end
+	end
+
 	local extra = tooltip:GetExtra()
 	local itemType, itemID, randomProp, factor, enchant, uniqID, gemSlot1, gemSlot2, gemSlot3, gemSlotBonus = tooltip:DecodeLink(link)
 	if itemType ~= "item" then return end
@@ -52,6 +62,10 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 	local stacks = 1
 
 	local itemInfo = Informant.GetItem(link)
+	-- Fallback: If the quality link isn't in the DB, try looking up the base item ID so we don't return blank
+	if (not itemInfo) and itemID then
+		itemInfo = Informant.GetItem("item:"..itemID)
+	end
 	if (not itemInfo) then return end
 	Informant.itemInfo = itemInfo
 
@@ -132,7 +146,6 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 		end
 	end
 
-	--DEFAULT_CHAT_FRAME:AddMessage("Got vendor: "..(buy or 0).."/"..(sell or 0))
 	if (getFilter('show-vendor')) then
 		if ((buy > 0) or (sell > 0)) then
 			local bgsc = tooltip:Coins(buy)
@@ -170,13 +183,11 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 			if (merchantCount > 0) then
 				tooltip:AddLine(_TRANS('INF_Tooltip_ShowMerchant'):format(merchantCount), 0.5, 0.8, 0.5, embedded)
 			else
-				-- NOTE - there are 2 cases for "no known":  nil list, and zero length list
 				if (getFilter('show-zero-merchants')) then
 					tooltip:AddLine(_TRANS('INF_Tooltip_NoKnownMerchants'), 0.8, 0.2, 0.2, embedded)
 				end
 			end
 		else
-			-- NOTE - there are 2 cases for "no known":  nil list, and zero length list
 			if (getFilter('show-zero-merchants')) then
 				tooltip:AddLine(_TRANS('INF_Tooltip_NoKnownMerchants'), 0.8, 0.2, 0.2, embedded)
 			end
@@ -192,7 +203,6 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 		end
 		if (itemInfo.usedList and itemInfo.usageText) then
 			if (#itemInfo.usedList > 2) then
-
 				local currentUseLine = nilSafeString(itemInfo.usedList[1])..", "..nilSafeString(itemInfo.usedList[2])..","
 				reagentInfo = _TRANS('INF_Tooltip_Use'):format(currentUseLine)
 				tooltip:AddLine(reagentInfo, nil, embedded)
@@ -213,41 +223,58 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 		end
 	end
 
--- ccox - TODO - localize me!
-	if ( getFilter('show-crafted') and itemInfo.crafts) then
+	-- MODERNIZED CRAFTED OUTPUT CHECK
+	if (getFilter('show-crafted') and itemInfo.crafts) then
 		local crafted_item = itemInfo.crafts
-		local itemName, itemLink, itemQuality, itemLevel, playerLevel, itemType, itemSubType, stackCount, equipLoc, texture, sellPrice = GetItemInfo( tonumber( crafted_item ) )
-		local item_craft_count = itemInfo.craftsCount or 1
+		local itemLink = nil
+		
+		-- Use the modern tooltip hyperlink data context directly if we are hovering a recipe item
+		if frame and frame.GetTooltipData then
+			local tooltipData = frame:GetTooltipData()
+			if tooltipData and tooltipData.type == Enum.TooltipDataType.Item then
+				itemLink = tooltipData.hyperlink
+			end
+		end
+
+		if not itemLink then
+			_, itemLink = GetItemInfo(tonumber(crafted_item) or crafted_item)
+		end
+
+		local itemName, _, itemQuality, itemLevel, playerLevel, itemType, itemSubType, stackCount, equipLoc, texture, sellPrice
+		if itemLink then
+			itemName, _, itemQuality, itemLevel, playerLevel, itemType, itemSubType, stackCount, equipLoc, texture, sellPrice = GetItemInfo(itemLink)
+		end
 
 		tooltip:SetColor(0.6, 0.4, 0.8)
 
-		-- show item that this recipe teaches, in quality color
-		if (itemLink) then	-- sometimes GetInfo fails
+		if (itemLink) then
 			tooltip:AddLine( ("Crafts: %s"):format(itemLink), nil, embedded)
 		else
 			tooltip:AddLine( "Crafts item: "..crafted_item, nil, embedded)
 		end
 
-		-- show AucAdv value
-		if (itemLink and AucAdvanced) then
-			local price5 = AucAdvanced.API.GetMarketValue( itemLink );
+		local item_craft_count = tonumber(itemInfo.craftsCount) or 1
+
+		-- show AucAdv value with exact quality links
+		if (itemLink and AucAdvanced and AucAdvanced.API) then
+			local price5 = AucAdvanced.API.GetMarketValue(itemLink)
 			if (price5) then
-				tooltip:AddLine( "        AucAdv: ", item_craft_count*price5, embedded)
+				tooltip:AddLine("        AucAdv: ", item_craft_count * price5, embedded)
 			end
 		end
 
 		-- show DE value if non-zero
 		if (Enchantrix and Enchantrix.Storage) then
-			local _, _, baseline, aucadv = Enchantrix.Storage.GetItemDisenchantTotals( crafted_item )
-			if (aucadv or baseline) then
-				-- this can be disenchanted
-				tooltip:AddLine( "        Disenchant: ", item_craft_count*(aucadv or baseline), embedded)
+			local deTarget = itemLink or crafted_item
+			local success, _, _, baseline, aucadv = pcall(Enchantrix.Storage.GetItemDisenchantTotals, deTarget)
+			if success and (aucadv or baseline) then
+				tooltip:AddLine("        Disenchant: ", item_craft_count * (aucadv or baseline), embedded)
 			end
 		end
 
 		-- show vendor value if non-zero
 		if (sellPrice) then
-			tooltip:AddLine( "        Vendor: ", item_craft_count*sellPrice, embedded)
+			tooltip:AddLine("        Vendor: ", item_craft_count * sellPrice, embedded)
 		end
 	end
 
@@ -276,6 +303,23 @@ function whitespace(length)
 	return spaces
 end
 
+local function GetSafeCraftingLink(recipeID, reagentIndex)
+    if not recipeID or not reagentIndex then return nil end
+    if not C_TradeSkillUI then return nil end
+    
+    -- 1. Try variable/quality reagent API first
+    if C_TradeSkillUI.GetRecipeReagentItemLink then
+        local variableLink = C_TradeSkillUI.GetRecipeReagentItemLink(recipeID, reagentIndex)
+        if variableLink then return variableLink end
+    end
+    
+    -- 2. Fall back to fixed reagent API if the first one returns nil
+    if C_TradeSkillUI.GetRecipeFixedReagentItemLink then
+        return C_TradeSkillUI.GetRecipeFixedReagentItemLink(recipeID, reagentIndex)
+    end
+    
+    return nil
+end
 -------------------------------------------------------------------------------
 -- Prints the specified message to nLog.
 --

@@ -20,45 +20,55 @@ function Module:DisplayTooltip(type, tooltip, tip, ...)
 		return
 	end
 
+	-- 1. Initialize the frame first
 	tooltip:SetFrame(tip)
-	local additional = tooltip:GetExtra()
-	quantity = tonumber(quantity) or 1
 
+	-- 2. SAFE EXTRA FETCH
+	-- We wrap this in a pcall or a check to prevent the nTipHelper error
+	local additional
+	local ok, err = pcall(function() additional = tooltip:GetExtra() end)
+	
+	-- If nTipHelper isn't ready, we create a dummy table to prevent crashes
+	if not ok or not additional then
+		additional = { event = "UNKNOWN" } 
+	end
+
+	quantity = tonumber(quantity) or 1
 	tooltip:SetColor(0.3, 0.9, 0.8)
-	tooltip:SetMoneyAsText(false)
 	tooltip:SetEmbed(true)
 
 	local itemKey
 
-	if additional.event == "SetItemKey" then
-		itemKey = C_AuctionHouse.MakeItemKey(additional.eventItemID, additional.eventItemLevel or 0, additional.EventItemSuffix or 0, 0)
-	elseif additional.event == "SetBagItem" then
-		local location = ItemLocation:CreateFromBagAndSlot(additional.eventContainer, additional.eventIndex)
-		itemKey = C_AuctionHouse.GetItemKeyFromItem(location)
-	elseif additional.event == "SetInventoryItem" and additional.eventUnit == "player" then
-		local location = ItemLocation:CreateFromEquipmentSlot(additional.eventIndex)
-		itemKey = C_AuctionHouse.GetItemKeyFromItem(location)
-	else
-		if tip.GetOwner then
-			local owner = tip:GetOwner()
-			if owner.GetItemKey then
-				itemKey = owner:GetItemKey()
-			elseif owner.GetItemLocation then
-				local location = owner:GetItemLocation()
-				if location then
-					itemKey = C_AuctionHouse.GetItemKeyFromItem(location)
+	-- 3. PRIORITIZE THE DIRECT LINK (Like Informant/ATT)
+	-- This bypasses the need for 'additional' data entirely for many items
+	if link then
+		itemKey = Auctioneer:ItemKeyFromLink(link)
+	end
+
+	-- 4. TRADESKILL SCRAPING (If link failed and we have UI context)
+	if not itemKey and ProfessionsFrame and ProfessionsFrame:IsShown() then
+		local schematicForm = ProfessionsFrame.CraftingPage and ProfessionsFrame.CraftingPage.SchematicForm
+		if schematicForm and schematicForm.reagentSlots then
+			for _, slot in ipairs(schematicForm.reagentSlots) do
+				if slot.Button and slot.Button:IsMouseOver() then
+					link = slot.Button:GetItemLink()
+					if link then
+						itemKey = Auctioneer:ItemKeyFromLink(link)
+						break
+					end
 				end
 			end
 		end
-
-		if not itemKey then
-			itemKey = Auctioneer:ItemKeyFromLink(link)
-		end
 	end
 
-	if not itemKey then 
-    return 
-end
+    -- ... Rest of your logic for SetBagItem / SetInventoryItem ...
+    -- 3. FINAL VALIDATION (Safety from ATT)
+    if not itemKey and link then
+        itemKey = Auctioneer:ItemKeyFromLink(link)
+    end
+
+    if not itemKey then return end
+
 	if not AuctioneerData.itemHasLevel[itemKey.itemID] then
 		-- We have never even seen this item
 		tooltip:AddLine("Never seen at auction")

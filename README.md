@@ -1,7 +1,9 @@
 # Auctioneer for World of Warcraft: Forever (beta)
 
-This branch (`forever`) is [profdumbbelldore's Auctioneer 12.x fork](https://github.com/profdumbbelldore/Auctioneer-12.x.BETA)
-with the changes the **WoW: Forever beta client** needs. Nothing else is touched: the same nine addon folders, the
+The Auctioneer addon suite made to run on the **WoW: Forever beta client**. It is
+[profdumbbelldore's Auctioneer 12.x fork](https://github.com/profdumbbelldore/Auctioneer-12.x.BETA) (itself a
+continuation of [Norganna's Auctioneer](https://auctioneeraddon.com/), GPL v2 - see `LICENSE`) with the changes the
+Forever client needs; the git history keeps the upstream commits. Nothing else is touched: the same nine addon folders, the
 same features, the same settings.
 
 Why a separate branch: Forever runs Blizzard's Mainline UI (the retail-style auction house) on the **12.1.5 API set**.
@@ -13,7 +15,7 @@ never saw them.
 
 ## Install
 
-1. Download the zip from the [Releases](../../releases) page (or this branch as a zip).
+1. Download the zip from the [Releases](../../releases) page.
 2. Copy the nine folders - `!Swatter`, `Auctioneer`, `Auctioneer_Stats_OverTime`, `Auctioneer_Util_DealFinder`,
    `Auctioneer_Util_Valuer`, `Enchantrix`, `Informant`, `SlideBar`, `Stubby` - into
    `World of Warcraft\_classic_beta_\Interface\AddOns\`.

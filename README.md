@@ -2,7 +2,8 @@
 
 The Auctioneer addon suite made to run on the **WoW: Forever beta client**. It is
 [profdumbbelldore's Auctioneer 12.x fork](https://github.com/profdumbbelldore/Auctioneer-12.x.BETA) (itself a
-continuation of [Norganna's Auctioneer](https://auctioneeraddon.com/), GPL v2 - see `LICENSE`) with the changes the
+continuation of [Norganna's Auctioneer](https://auctioneeraddon.com/), official source
+[gitlab.com/norganna-wow/auctioneer](https://gitlab.com/norganna-wow/auctioneer), GPL v2 - see `LICENSE`) with the changes the
 Forever client needs; the git history keeps the upstream commits. Nothing else is touched: the same nine addon folders, the
 same features, the same settings.
 

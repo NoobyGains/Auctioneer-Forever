@@ -138,7 +138,7 @@ function lib.GetItemInfoCache(item, sel, mode) -- *** Note this uses '.' not ':'
 	end
 
 	Monitor.called = Monitor.called + 1 -- #monitor
-	values = {GetItemInfo(item)}
+	values = {C_Item.GetItemInfo(item)}
 	if not values[1] then -- nil return from GetItemInfo
 		return
 	end

@@ -29,6 +29,8 @@ local LIBRARY_VERSION_MAJOR = "ScrollSheet"
 local LIBRARY_VERSION_MINOR = 27
 local lib = LibStub:NewLibrary(LIBRARY_VERSION_MAJOR, LIBRARY_VERSION_MINOR)
 if not lib then return end
+-- Forever/12.x: GetMouseFocus was removed in 11.0; GetMouseFoci lists the frames under the cursor, deepest first
+local GetMouseFocus = GetMouseFocus or function() local foci = GetMouseFoci and GetMouseFoci() return (foci and foci[1]) or WorldFrame end
 
 -- CONSTANTS
 local HEIGHT_LABEL = 16

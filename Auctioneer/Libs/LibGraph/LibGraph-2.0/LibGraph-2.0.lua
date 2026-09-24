@@ -81,7 +81,7 @@ local math_huge = math.huge
 local CreateFrame = CreateFrame
 local GetCursorPosition = GetCursorPosition
 local GetTime = GetTime
-local MouseIsOver = MouseIsOver
+local MouseIsOver = MouseIsOver or function(region) return region and region.IsMouseOver and region:IsMouseOver() end -- Forever/12.x
 local UnitHealth = UnitHealth
 
 local UIParent = UIParent

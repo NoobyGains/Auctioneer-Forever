@@ -478,14 +478,14 @@ function Swatter.OnEvent(frame, event, ...)
 				OnError(string.format("Warning: AddOn %s attempted to call a protected function (%s) which may require interaction.", addon, func), Swatter.NamedFrame("AddOn: "..addon), debugstack(2, 20, 20), event, ...)
 			end
 		else
-			UIParent_OnEvent(frame, event, ...)
+			if UIParent_OnEvent then UIParent_OnEvent(frame, event, ...) end
 		end
 	elseif (event == "ADDON_ACTION_FORBIDDEN") then
 		if SwatterData.enabled then
 			local addon, func = ...
 			OnError(string.format("Error: AddOn %s attempted to call a forbidden function (%s) from a tainted execution path.", addon, func), Swatter.NamedFrame("AddOn: "..addon), debugstack(2, 20, 20), event, ...)
 		else
-			UIParent_OnEvent(frame, event, ...)
+			if UIParent_OnEvent then UIParent_OnEvent(frame, event, ...) end
 		end
 	elseif (event == "PLAYER_LOGIN") then
 		addSlideIcon() --create ldb launcher button

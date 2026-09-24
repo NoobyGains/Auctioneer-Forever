@@ -55,7 +55,7 @@ function lib:Set(url, revision, dev, ...)
 
 			local vrev = max(vaddon['x-revision'] or 0, rev)
 
-			local ver = GetAddOnMetadata(addon, "Version")
+			local ver = C_AddOns.GetAddOnMetadata(addon, "Version")
 			if not ver or ver:sub(0,2) == "<%" then
 				ver = (dev or "DEV.")..vrev
 				if branch ~= "trunk" then -- if a DEV side branch, add to additional info
@@ -63,7 +63,7 @@ function lib:Set(url, revision, dev, ...)
 				end
 			end
 
-			if not IsAddOnLoaded(addon) then
+			if not C_AddOns.IsAddOnLoaded(addon) then
 				embed = true
 				addition = (addition or "").."/embedded"
 			end

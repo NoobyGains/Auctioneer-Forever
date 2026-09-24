@@ -237,12 +237,12 @@ function Informant.TooltipHandler(frame, item, count, name, link, quality)
 		end
 
 		if not itemLink then
-			_, itemLink = GetItemInfo(tonumber(crafted_item) or crafted_item)
+			_, itemLink = C_Item.GetItemInfo(tonumber(crafted_item) or crafted_item)
 		end
 
 		local itemName, _, itemQuality, itemLevel, playerLevel, itemType, itemSubType, stackCount, equipLoc, texture, sellPrice
 		if itemLink then
-			itemName, _, itemQuality, itemLevel, playerLevel, itemType, itemSubType, stackCount, equipLoc, texture, sellPrice = GetItemInfo(itemLink)
+			itemName, _, itemQuality, itemLevel, playerLevel, itemType, itemSubType, stackCount, equipLoc, texture, sellPrice = C_Item.GetItemInfo(itemLink)
 		end
 
 		tooltip:SetColor(0.6, 0.4, 0.8)

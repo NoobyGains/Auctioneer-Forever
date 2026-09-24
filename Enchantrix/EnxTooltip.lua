@@ -126,7 +126,7 @@ local function prospectTooltip(prospect, tooltip, name, link, quality, count)
 
 		-- Name and quality
 		local rName, _, rQuality = Enchantrix.Util.GetReagentInfo(result)
-		local _, _, _, color = GetItemQualityColor(rQuality or 0)
+		local _, _, _, color = C_Item.GetItemQualityColor(rQuality or 0)
 		color = "|c"..color
 		tooltipFormat:SetPattern("|q", color or "|cffcccc33")
 		if (not rName) then rName = "item:"..result; end
@@ -219,7 +219,7 @@ local function millingTooltip(prospect, tooltip, name, link, quality, count)
 
 		-- Name and quality
 		local rName, _, rQuality = Enchantrix.Util.GetReagentInfo(result)
-		local _, _, _, color = GetItemQualityColor(rQuality or 0)
+		local _, _, _, color = C_Item.GetItemQualityColor(rQuality or 0)
 		color = "|c"..color
 		tooltipFormat:SetPattern("|q", color or "|cffcccc33")
 		if (not rName) then rName = "item:"..result; end
@@ -328,8 +328,8 @@ function itemTooltip(tooltip, name, link, itemType, itemId, quality, count)
 	-- useful for debugging, not useful for most folks, setting must be changed manually in the settings file
 	if ( Enchantrix.Settings.GetSetting('TooltipShowItemDebugDetails') ) then
 --	if ( true ) then
-		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, invTexture = GetItemInfo(link)
-        effLevel = GetDetailedItemLevelInfo(link)
+		local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, invTexture = C_Item.GetItemInfo(link)
+        effLevel = C_Item.GetDetailedItemLevelInfo(link)
         if effLevel then
             itemLevel = effLevel
         end
@@ -443,7 +443,7 @@ function itemTooltip(tooltip, name, link, itemType, itemId, quality, count)
 
 				-- Name and quality
 				local rName, _, rQuality = Enchantrix.Util.GetReagentInfo(result)
-				local _, _, _, color = GetItemQualityColor(rQuality or 0)
+				local _, _, _, color = C_Item.GetItemQualityColor(rQuality or 0)
 				color = "|c"..color
 				tooltipFormat:SetPattern("|q", color or "|cffcccc33")
 				if (not rName) then rName = "item:"..result; end
@@ -713,7 +713,7 @@ enchantTooltip = function(tooltip, name, link, isItem)
 		name = name:gsub("^%s*", "")	-- remove leading spaces
         --Enchantrix.Util.DebugPrintQuick("cleaned name is ", name )
 
-        if (constants.Classic) then
+        if (constants.Classic and GetNumCrafts and GetNumTradeSkills) then -- Forever: classic-era data, no classic craft API
 
             -- first try craft APIs
             for i = 1, GetNumCrafts() do
@@ -787,7 +787,7 @@ enchantTooltip = function(tooltip, name, link, isItem)
 		local rName, _, rQuality = Enchantrix.Util.GetReagentInfo(reagent[1])
 		local style, extra = Enchantrix.Util.GetPricingModel();
 		local hsp, median, market, five, fix = Enchantrix.Util.GetReagentPrice(reagent[1],extra)
-		local _, _, _, color = GetItemQualityColor(rQuality)
+		local _, _, _, color = C_Item.GetItemQualityColor(rQuality)
 		color = "|c"..color
 
 		reagent[1] = rName

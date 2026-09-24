@@ -43,7 +43,7 @@ local type,pairs,ipairs,select = type,pairs,ipairs,select
 local tonumber,tostring,strmatch = tonumber,tostring,strmatch
 local strsplit,strsub,format = strsplit,strsub,format
 local tinsert,wipe = tinsert,wipe
-local GetItemInfo = GetItemInfo
+local GetItemInfo = C_Item.GetItemInfo
 -- GLOBALS: LibStub
 -- GLOBALS: InformantLocalUpdates, InformantConfig
 -- GLOBALS: InformantFrame, InformantFrameScrollBar
@@ -205,7 +205,7 @@ function getItem(itemLink, static)
 		itemTexture, itemSell, itemClassID, itemSubClassID, itemBindType, itemExpacID, itemSetID, itemReagent = GetItemInfo(itemLink)
 
     -- get item level with upgrades
-    local effLevel = GetDetailedItemLevelInfo(itemLink)
+    local effLevel = C_Item.GetDetailedItemLevelInfo(itemLink)
     if effLevel then
         itemLevel = effLevel
     end
@@ -793,7 +793,7 @@ local function updateSellPricesFromMerchant()
 							local itemName, itemLink, itemQuality, itemLevel, itemUseLevel, itemType, itemSubType, itemStackSize, itemEquipLoc, itemTexture = GetItemInfo(scanningLink)
 
                             -- get item level with upgrades
-                            local effLevel = GetDetailedItemLevelInfo(scanningLink)
+                            local effLevel = C_Item.GetDetailedItemLevelInfo(scanningLink)
                             if effLevel then
                                 itemLevel = effLevel
                             end
@@ -836,7 +836,7 @@ local function updateBuyPricesFromMerchant( vendorID )
 					local itemName, itemLink, itemQuality, itemLevel, itemUseLevel, itemType, itemSubType, itemStackSize, itemEquipLoc, itemTexture = GetItemInfo(link)
 
                     -- get item level with upgrades
-                    local effLevel = GetDetailedItemLevelInfo(link)
+                    local effLevel = C_Item.GetDetailedItemLevelInfo(link)
                     if effLevel then
                         itemLevel = effLevel
                     end

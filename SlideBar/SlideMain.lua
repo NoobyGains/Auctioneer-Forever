@@ -710,7 +710,7 @@ function private.CommandHandler(msg)
 		save = true
 	end
 	if (a == "config") then
-		InterfaceOptionsFrame_OpenToCategory(frame.config)
+		if InterfaceOptionsFrame_OpenToCategory then InterfaceOptionsFrame_OpenToCategory(frame.config) elseif Settings and Settings.OpenToCategory then Settings.OpenToCategory(frame.config.name) end
 	end
 	if (save) then
 		lib.ApplyLayout()

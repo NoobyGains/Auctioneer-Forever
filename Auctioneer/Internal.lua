@@ -193,7 +193,7 @@ function Internal:ItemKeyFromLink(link)
 		local linkBits = {strsplit(":", linkOptions)}
 		local itemID = tonumber(linkBits[1])
 		local itemSuffix = tonumber(linkBits[7]) or 0
-		local effectiveLevel = GetDetailedItemLevelInfo(link) or 0	
+		local effectiveLevel = C_Item.GetDetailedItemLevelInfo(link) or 0	
 		return C_AuctionHouse.MakeItemKey(itemID, effectiveLevel, itemSuffix, 0)
 	end
 end

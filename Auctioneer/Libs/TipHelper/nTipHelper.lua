@@ -151,7 +151,7 @@ do -- tooltip class definition
 			return lastSaneLink
 		end
 		if type(link) == "number" then
-			local _, tlink = GetItemInfo(link)
+			local _, tlink = C_Item.GetItemInfo(link)
 			link = tlink
 		end
 		if type(link) ~= "string" then
@@ -250,7 +250,7 @@ do -- tooltip class definition
 					"item",link, 0,0,0,0, 0,0,0,0, nil
 				if info then
 					-- only need to create a proper link if it will be needed for the info table
-					local _, newlink = GetItemInfo(link)
+					local _, newlink = C_Item.GetItemInfo(link)
 					link = newlink
 				end
 			end
@@ -313,8 +313,8 @@ do -- tooltip class definition
 		local color = link:match("|c(%x+)|H")
 		if color then
 			local _, hex
-			for i = 0, NUM_ITEM_QUALITIES do
-				_,_,_, hex = GetItemQualityColor(i)
+			for i = 0, (NUM_ITEM_QUALITIES or 8) do
+				_,_,_, hex = C_Item.GetItemQualityColor(i)
 				if color == hex then return i end
 			end
 		end

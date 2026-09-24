@@ -1,4 +1,8 @@
-﻿--[[
+﻿local GetItemInfo = C_Item.GetItemInfo -- Forever/12.1.5: the global item-API fallbacks are gone
+local GetDetailedItemLevelInfo = C_Item.GetDetailedItemLevelInfo
+local GetItemIcon = C_Item.GetItemIconByID
+local LOOT_SLOT_ITEM = LOOT_SLOT_ITEM or (Enum and Enum.LootSlotType and Enum.LootSlotType.Item) or 1 -- constant gone too
+--[[
 	Enchantrix Addon for World of Warcraft(tm).
 	Version: 9.1.BETA.5.15 (OneMawTime)
 	Revision: $Id$

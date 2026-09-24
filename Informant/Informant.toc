@@ -1,7 +1,7 @@
 ## Title: Informant
 ## Notes: Displays detailed item information in tooltips, such as use, vendor sales information, and more. 
 ##
-## Interface: 120000, 120005, 120007, 120100
+## Interface: 120000, 120005, 120007, 120100, 16001
 ## LoadOnDemand: 1
 ## Dependencies: Stubby
 ## OptionalDeps: !nLog, Babylonian, DebugLib, Configator, SlideBar, LibExtraTip, TipHelper, LibDataBroker

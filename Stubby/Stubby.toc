@@ -1,7 +1,7 @@
 ## Title: Stubby |cff224477(lib)
 ## Notes: Allows AddOns to load automatically, and provides event handling support.
 ##
-## Interface: 120000, 120005, 120007, 120100
+## Interface: 120000, 120005, 120007, 120100, 16001
 ## OptionalDeps: !nLog, DebugLib
 ## SavedVariables: StubbyConfig
 ##

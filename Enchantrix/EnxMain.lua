@@ -126,7 +126,11 @@ end
 	end
 	hooksecurefunc("PickupInventoryItem", pickupInventoryItemHook)
 	hooksecurefunc("SpellTargetItem", spellTargetItemHook)
-	hooksecurefunc("UseItemByName", useItemByNameHook);			-- added in 2.0, used by macro /use
+	if C_Item and C_Item.UseItemByName then -- UseItemByName has been moved to C_Item namespace; WoW Forever has no global ### hybrid
+		hooksecurefunc(C_Item, "UseItemByName", useItemByNameHook)
+	elseif UseItemByName then
+		hooksecurefunc("UseItemByName", useItemByNameHook);			-- added in 2.0, used by macro /use
+	end
 
 	-- events that we need to catch
 	Stubby.RegisterEventHook("UNIT_SPELLCAST_SUCCEEDED", "Enchantrix", onEvent)

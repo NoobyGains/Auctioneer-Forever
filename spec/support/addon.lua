@@ -18,7 +18,7 @@ function addon.boot(env, opts)
 
 	local Auctioneer = _G.Auctioneer
 	local gui = Auctioneer:Boot("GUI")
-	gui.Components = {}
+	gui.Components = require("support.wow").null() -- widget constructors, e.g. GUI:MoneyView()
 	gui.Money = function() end
 	local parts = gui._
 

@@ -53,7 +53,7 @@ function Module:ScannerItemsCompleted(items)
 				price = stat:Minimum()
 			end
 
-			if not bestPrice or (price < bestPrice and points > 5 and points > bestPricePoints / 2) then
+			if price and (not bestPrice or (price < bestPrice and number > 5 and number > bestPricePoints / 2)) then
 				bestPrice = price
 				bestPricePoints = number
 
@@ -66,6 +66,10 @@ function Module:ScannerItemsCompleted(items)
 		end
 
 		local itemPrice = item.itemData.minPrice
+		-- Vendor price only from the client cache: asking for uncached items would
+		-- send one server request per scanned item.
+		local itemID = item.itemKey.itemID
+		local vendorPrice = C_Item.IsItemDataCachedByID(itemID) and select(11, C_Item.GetItemInfo(itemID))
 
 		if vendorPrice and vendorPrice > 0 and itemPrice < vendorPrice then
 			tinsert(deals, {item, itemPrice, "vendor", vendorPrice, 0})

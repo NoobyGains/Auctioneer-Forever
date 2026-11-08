@@ -13,6 +13,9 @@ end
 nullMT.__call = function() return null() end
 nullMT.__concat = function() return "" end
 nullMT.__tostring = function() return "" end
+-- Sizes and offsets read from a null frame (e.g. -frame:GetWidth()) count as 0.
+local function zero() return 0 end
+nullMT.__unm, nullMT.__add, nullMT.__sub, nullMT.__mul, nullMT.__div = zero, zero, zero, zero, zero
 wow.null = null
 
 local function newClock()

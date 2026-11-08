@@ -6,7 +6,7 @@ continuation of [Norganna's Auctioneer](https://auctioneeraddon.com/), official 
 [gitlab.com/norganna-wow/auctioneer](https://gitlab.com/norganna-wow/auctioneer), GPL v2 - see `LICENSE`) with the changes the
 Forever client needs; the git history keeps the upstream commits. The same nine addon folders, the same features, the
 same settings - plus fixes for bugs and slow spots that get in the way of using it on Forever (see
-[Changes beyond the port](#changes-beyond-the-port) and [ADR 0001](docs/adr/0001-fork-scope-beyond-port.md)).
+[Changes beyond the port](#changes-beyond-the-port)).
 
 Why a separate branch: Forever runs Blizzard's Mainline UI (the retail-style auction house) on the **12.1.5 API set**.
 Patch 12.1.5 removed the deprecated item functions that the 12.1.0 build still relies on (`GetItemInfo`,

@@ -623,7 +623,9 @@ function private:MouseDown(...)
 	if button then
 		button.icon:SetTexCoord(0, 1, 0, 1)
 	end
-	if self.MouseDown then self:MouseDown(...) end
+	-- rawget: newer clients have a built-in Frame:MouseDown(), only forward to a handler set on the frame itself
+	local handler = rawget(self, "MouseDown")
+	if handler then handler(self, ...) end
 end
 
 function private:MouseUp(...)
@@ -631,7 +633,9 @@ function private:MouseUp(...)
 	if button then
 		button.icon:SetTexCoord(0.025, 0.975, 0.025, 0.975)
 	end
-	if self.MouseUp then self:MouseUp(...) end
+	-- rawget: newer clients have a built-in Frame:MouseUp(), only forward to a handler set on the frame itself
+	local handler = rawget(self, "MouseUp")
+	if handler then handler(self, ...) end
 end
 
 -- Command processor

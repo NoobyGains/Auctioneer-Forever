@@ -107,7 +107,7 @@ local function newAH(env)
 		return page
 	end
 
-	function ah:search()
+	function ah:scan()
 		self.delivered = {}
 		self.fullAt = nil
 		self:deliver()

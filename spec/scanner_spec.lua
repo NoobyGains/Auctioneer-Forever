@@ -1,12 +1,11 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 local rows, all, every = addon.rows, addon.all, addon.every
 local pushedItems, completedCount = addon.pushedItems, addon.completedCount
 
 describe("scanner", function()
 	local env, A
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 	end)
 
 	it("records every browse result even when item key info never arrives", function()
@@ -41,7 +40,7 @@ describe("scanner", function()
 
 	it("records the pages received when the auction house closes mid-scan", function()
 		env.ah:load(rows(2000), {pageLatency = 1.0})
-		env.ah:search()
+		env.ah:scan()
 		env.clock:advance(1.5) -- first page plus one more page = 1000 rows
 		env.dispatch("AUCTION_HOUSE_CLOSED")
 		env.clock:runUntilIdle(3600)
@@ -55,12 +54,12 @@ describe("scanner", function()
 		assert.are.equal(300, #pushedItems(A))
 	end)
 
-	it("records both scans when Search is clicked again while statistics are pushing", function()
+	it("records both scans when a new scan starts while statistics are pushing", function()
 		env.ah:load(rows(2000))
-		env.ah:search()
+		env.ah:scan()
 		repeat env.clock:advance(0.01) until #pushedItems(A) > 0 -- first scan is now pushing
 		env.ah:load(rows(100))
-		env.ah:search()
+		env.ah:scan()
 		env.clock:runUntilIdle(3600)
 		assert.are.equal(2100, #pushedItems(A))
 		assert.are.equal(2, completedCount(A))

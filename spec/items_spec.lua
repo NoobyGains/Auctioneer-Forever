@@ -1,10 +1,9 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 
 describe("item:Info without item key info", function()
 	local env, A
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 	end)
 
 	local function linen()

@@ -1,4 +1,4 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 local errorLines = addon.errorLines
 
 describe("DealFinder", function()
@@ -15,8 +15,7 @@ describe("DealFinder", function()
 
 	before_each(function()
 		statsFor = {}
-		env = wow.install()
-		A = addon.boot(env, {
+		env, A = addon.start({
 			files = {"Auctioneer_Util_DealFinder/Main.lua"},
 			patch = function(A)
 				A.module("Util:DealFinder").Display = function() end

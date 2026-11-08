@@ -1,11 +1,10 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 
 describe("Valuer", function()
 	local env, A, valuer, shown
 
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env, {files = {"Auctioneer_Util_Valuer/Main.lua"}})
+		env, A = addon.start({files = {"Auctioneer_Util_Valuer/Main.lua"}})
 		valuer = A.module("Util:Valuer")
 		C_AuctionHouse.GetItemKeyFromItem = function() return C_AuctionHouse.MakeItemKey(2589, 0, 0, 0) end
 		shown = 0

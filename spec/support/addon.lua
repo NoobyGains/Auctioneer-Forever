@@ -53,7 +53,7 @@ function addon.boot(env, opts)
 	function A.scan(rows, scanOpts)
 		local first = #A.triggers + 1
 		env.ah:load(rows, scanOpts)
-		env.ah:search()
+		env.ah:scan()
 		env.clock:runUntilIdle(env.clock.now + 3600)
 
 		local res = {items = {}}
@@ -69,6 +69,12 @@ function addon.boot(env, opts)
 	end
 
 	return A
+end
+
+-- Fresh stubbed client plus a booted addon: the setup every spec starts from.
+function addon.start(opts)
+	local env = require("support.wow").install()
+	return env, addon.boot(env, opts)
 end
 
 -- Spec helpers.

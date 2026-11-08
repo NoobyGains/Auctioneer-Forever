@@ -1,8 +1,8 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 
 describe("Auctioneer:Statistics", function()
-	it("accepts a numeric item id", function()
-		local A = addon.boot(wow.install())
+	it("accepts an item key given as a plain item number", function()
+		local _, A = addon.start()
 		local seen
 		table.insert(A.parts.Internal.modules, {name = "Probe", hooks = {}, Stats = function(_, _, id) seen = id end})
 		A.Auctioneer:Statistics(2589)

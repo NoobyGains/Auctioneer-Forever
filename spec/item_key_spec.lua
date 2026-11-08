@@ -3,8 +3,7 @@ local wow, addon = require("support.wow"), require("support.addon")
 describe("item key from a link", function()
 	local env, A
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 	end)
 
 	local function keyOf(link)
@@ -23,7 +22,7 @@ describe("item key from a link", function()
 		assert.are.equal("19019:80", keyOf(wow.link(19019)))
 	end)
 
-	it("drops the level for an item never seen at auction", function()
+	it("drops the level for an item never scanned", function()
 		env.items[2589] = {level = 5}
 		assert.are.equal("2589", keyOf(wow.link(2589)))
 	end)

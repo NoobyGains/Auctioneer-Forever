@@ -4,8 +4,7 @@ describe("tooltip debug log", function()
 	local env, A, tooltip
 
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 		tooltip = A.module("Tooltip")
 		AuctioneerLocal.debug = true
 	end)

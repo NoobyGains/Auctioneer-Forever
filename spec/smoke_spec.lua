@@ -1,9 +1,8 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 
 describe("harness", function()
 	it("boots the addon and records a 3-row scan", function()
-		local env = wow.install()
-		local A = addon.boot(env)
+		local env, A = addon.start()
 		local res = A.scan({
 			{itemID = 1, minPrice = 100, totalQuantity = 5},
 			{itemID = 2, minPrice = 200, totalQuantity = 1},

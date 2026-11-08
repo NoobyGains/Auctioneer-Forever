@@ -1,10 +1,9 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 
 describe("Auctioneer:Log", function()
 	local env, A
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 	end)
 
 	it("logs nothing when debug is off", function()

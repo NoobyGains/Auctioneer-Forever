@@ -1,4 +1,4 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 local rows, timingLines = addon.rows, addon.timingLines
 
 local PATTERN = "Auctioneer scan: 1200 results | fetch %d+%.%ds | process %d+%.%ds | stats %d+%.%ds$"
@@ -6,8 +6,7 @@ local PATTERN = "Auctioneer scan: 1200 results | fetch %d+%.%ds | process %d+%.%
 describe("scan timing", function()
 	local env, A
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 	end)
 
 	it("logs and prints one timing line per scan when debug is on", function()

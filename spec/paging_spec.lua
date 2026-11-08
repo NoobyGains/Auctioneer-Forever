@@ -1,11 +1,10 @@
-local wow, addon = require("support.wow"), require("support.addon")
+local addon = require("support.addon")
 local rows = addon.rows
 
 describe("browse paging", function()
 	local env, A
 	before_each(function()
-		env = wow.install()
-		A = addon.boot(env)
+		env, A = addon.start()
 	end)
 
 	it("requests the next page as soon as the throttle allows", function()

@@ -1,11 +1,12 @@
-# Auctioneer for World of Warcraft: Forever (beta)
+# Auctioneer for World of Warcraft: Forever
 
-The Auctioneer addon suite made to run on the **WoW: Forever beta client**. It is
+The Auctioneer addon suite made to run on the **WoW: Forever client**. It is
 [profdumbbelldore's Auctioneer 12.x fork](https://github.com/profdumbbelldore/Auctioneer-12.x.BETA) (itself a
 continuation of [Norganna's Auctioneer](https://auctioneeraddon.com/), official source
 [gitlab.com/norganna-wow/auctioneer](https://gitlab.com/norganna-wow/auctioneer), GPL v2 - see `LICENSE`) with the changes the
-Forever client needs; the git history keeps the upstream commits. Nothing else is touched: the same nine addon folders, the
-same features, the same settings.
+Forever client needs; the git history keeps the upstream commits. The same nine addon folders, the same features, the
+same settings - plus fixes for bugs and slow spots that get in the way of using it on Forever (see
+[Changes beyond the port](#changes-beyond-the-port) and [ADR 0001](docs/adr/0001-fork-scope-beyond-port.md)).
 
 Why a separate branch: Forever runs Blizzard's Mainline UI (the retail-style auction house) on the **12.1.5 API set**.
 Patch 12.1.5 removed the deprecated item functions that the 12.1.0 build still relies on (`GetItemInfo`,
@@ -19,16 +20,12 @@ never saw them.
 1. Download the zip from the [Releases](../../releases) page.
 2. Copy the nine folders - `!Swatter`, `Auctioneer`, `Auctioneer_Stats_OverTime`, `Auctioneer_Util_DealFinder`,
    `Auctioneer_Util_Valuer`, `Enchantrix`, `Informant`, `SlideBar`, `Stubby` - into
-   `World of Warcraft\_classic_beta_\Interface\AddOns\`.
+   `World of Warcraft\_forever_\Interface\AddOns\`.
 3. Start the game fully. A `/reload` does not pick up new addon folders.
 
-## Beta client bug you will run into: saved settings are not loaded back
-
-Forever beta builds 1.60.1.69913 and later **write** addon SavedVariables but do not **load** them at the next
-start ([forever-bugs #34](https://github.com/ClassicWoWCommunity/forever-bugs/issues/34)). Auctioneer's price history
-lives in SavedVariables, so until Blizzard fixes the client every scan is forgotten at logout unless you use a
-workaround such as [ForeverSVFix](https://github.com/nobewayo/ForeverSVFix). This branch does not work around it
-itself; it only makes the addon run.
+Saved settings and price history persist between sessions: the beta bug that kept SavedVariables from loading
+([forever-bugs #34](https://github.com/ClassicWoWCommunity/forever-bugs/issues/34)) was fixed in build 70009, so
+ForeverSVFix is no longer needed.
 
 ## What changed
 
@@ -51,13 +48,46 @@ itself; it only makes the addon run.
   `C_AddOns` like the two copies upstream already updated.
 * Every TOC lists `16001`, so the client no longer marks the addons as incompatible.
 
+## Changes beyond the port
+
+* **Faster scans: no wait for item info.** Prices are recorded straight from the browse results. The scan used to
+  stop on every item until its name and icon arrived from the server (up to 1s each); those are now fetched only when
+  an item is shown, and the Deal finder redraws when they arrive.
+* **Faster scans: paging by the throttle.** The next page of results is requested as soon as the client allows it
+  (`AUCTION_HOUSE_THROTTLED_SYSTEM_READY`), instead of after a fixed 0.4s pause per page.
+* **Scan edge cases.** A scan with a single result now reaches the statistics; closing the auction house mid-scan
+  keeps the pages already received; clicking Search again while statistics are still being saved no longer cuts the
+  new scan short.
+* **Tooltip prices for item links and crafting reagents.** The tooltip built the item key with the item's own level
+  (e.g. 5 for Linen Cloth), while scans record level 0 for items the auction house does not group by level, so the
+  lookup missed ("No statistics for this variant"). Links now use the same key a scan records.
+* **Deal finder and statistics fixes.** The Deal finder no longer throws a Lua error when an item has more than one
+  statistic or a statistic without a price, and it flags items below their vendor price again (for items the client
+  has cached). `Auctioneer:Statistics()` accepts a numeric item ID.
+* **Debug log.** `/run AuctioneerLocal.debug = true` turns it on; `/run AuctioneerLocal.debug = false` turns it off
+  (the setting persists per character). Lines show live in Blizzard's Event Trace window (`/etrace`), next to the
+  auction house events, and the last 2000 are saved in `AuctioneerLog` inside
+  `WTF\Account\<ACCOUNT>\SavedVariables\Auctioneer.lua` on `/reload` or logout. Each scan logs one timing line,
+  also printed to chat:
+  `Auctioneer scan: <n> results | fetch <s>s | process <s>s | stats <s>s`.
+
+## Running the tests
+
+The specs load the real addon files against a stubbed WoW API with a virtual clock and a fake auction house. They
+run with [busted](https://lunarmodules.github.io/busted/) on Lua 5.1 in Docker (Docker in WSL on Windows):
+
+    wsl.exe -e sh spec/run.sh
+
+`spec/` is not part of the install; copy only the nine addon folders.
+
 ## How this was checked
 
 Every global the suite reads was listed from the compiled Lua 5.1 bytecode and compared with what the Forever
 client actually defines - Blizzard's generated API documentation and UI code for the beta (branch `forever` of
 [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source), build 1.60.1.69977) - and with the removal notes on
 [warcraft.wiki.gg](https://warcraft.wiki.gg/wiki/Patch_12.1.5/API_changes). After the changes every file compiles and
-no call to a removed function remains. In-game reports from the beta are welcome in this fork's issues.
+no call to a removed function remains. The API was re-checked against the released client (Gethe/wow-ui-source
+`forever`, build 1.60.1.70862). In-game reports are welcome in this fork's issues.
 
 ---
 

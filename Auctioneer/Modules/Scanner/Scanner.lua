@@ -73,14 +73,19 @@ function Module:Fetch(type, results)
 		self.browseResults = C_AuctionHouse.GetBrowseResults()
 		self.browseSize = 12000
 		self:InvertedProgress(false)
+		self.marks = {}
+		self:Mark("start")
+		Auctioneer:Log("scan started")
 	elseif not self.scanning then
 		return
 	else
 		tAppendAll(self.browseResults, results)
+		Auctioneer:Log("page received: %d results so far", #self.browseResults)
 	end
 
 	local numResults = #self.browseResults
 	if C_AuctionHouse.HasFullBrowseResults() then
+		self:Mark("fetched")
 		if numResults > 0 then
 			self:InvertedProgress(true)
 			self:SetProgress(0, ("Getting results: %d"):format(numResults))
@@ -161,6 +166,7 @@ function Module:Next()
 	if not itemData then
 		-- We have reached the end
 		self:SetProgress(100, "Finished")
+		self:Mark("processed")
 		self:Push()
 		return
 	end
@@ -311,8 +317,32 @@ function Module:Push()
 		C_Timer.After(0.5, resume)
 		coroutine.yield()
 
+		self:Mark("pushed")
+		self:ReportTiming(#items)
 		Auctioneer:Trigger(Const.ScannerItemsCompleted, items)
 	end)()
+end
+
+-- Scan timing: phases are marked as the scan goes; one line per finished scan.
+function Module:Mark(phase)
+	if self.marks then
+		self.marks[phase] = GetTime()
+	end
+end
+
+function Module:ReportTiming(count)
+	local m = self.marks
+	self.marks = nil
+	if not (AuctioneerLocal and AuctioneerLocal.debug) then
+		return
+	end
+	if not (m and m.start and m.fetched and m.processed and m.pushed) then
+		return
+	end
+	local line = format("Auctioneer scan: %d results | fetch %.1fs | process %.1fs | stats %.1fs",
+		count, m.fetched - m.start, m.processed - m.fetched, m.pushed - m.processed)
+	Auctioneer:Log("%s", line)
+	print(line)
 end
 
 -- Reset state.

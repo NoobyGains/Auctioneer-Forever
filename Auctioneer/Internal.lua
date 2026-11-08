@@ -91,6 +91,32 @@ function Internal:Copy(what)
 	return copy
 end
 
+-- Debug log, only when AuctioneerLocal.debug is true. Each line goes to Blizzard's
+-- Event Trace window (/etrace) and to the AuctioneerLog saved variable, which the
+-- client writes to WTF\Account\<ACCOUNT>\SavedVariables\Auctioneer.lua on /reload or logout.
+local LOG_MAX_LINES = 2000
+function Internal:Log(fmt, ...)
+	if not (AuctioneerLocal and AuctioneerLocal.debug) then
+		return
+	end
+	local msg = fmt:format(...)
+
+	if not EventTrace and not Internal.eventTraceLoadTried then
+		Internal.eventTraceLoadTried = true
+		C_AddOns.LoadAddOn("Blizzard_EventTrace")
+	end
+	if EventTrace then
+		EventTrace:LogMessage("Auctioneer: "..msg)
+	end
+
+	AuctioneerLog = AuctioneerLog or {}
+	tinsert(AuctioneerLog, date("%H:%M:%S").." "..format("%.3f", GetTime()).." "..msg)
+	while #AuctioneerLog > LOG_MAX_LINES do
+		-- ponytail: O(n) trim, fine at 2000 lines; ring index if the cap grows
+		table.remove(AuctioneerLog, 1)
+	end
+end
+
 -- Add the module to our list.
 function Internal:Add(module)
 	tinsert(self.modules, module)

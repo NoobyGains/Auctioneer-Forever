@@ -27,6 +27,13 @@ describe("Auctioneer:Log", function()
 		assert.are.same({"Blizzard_EventTrace"}, env.loadedAddOns)
 	end)
 
+	it("still writes AuctioneerLog when EventTrace has no LogMessage", function()
+		AuctioneerLocal.debug = true
+		_G.EventTrace = {}
+		A.Auctioneer:Log("hello")
+		assert.truthy(AuctioneerLog[1]:match(" hello$"))
+	end)
+
 	it("keeps only the last 2000 lines", function()
 		AuctioneerLocal.debug = true
 		for i = 1, 2005 do A.Auctioneer:Log("line %d", i) end

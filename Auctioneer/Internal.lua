@@ -106,7 +106,7 @@ function Internal:Log(fmt, ...)
 		Internal.eventTraceLoadTried = true
 		C_AddOns.LoadAddOn("Blizzard_EventTrace")
 	end
-	if EventTrace then
+	if EventTrace and EventTrace.LogMessage then
 		EventTrace:LogMessage("Auctioneer: "..msg)
 	end
 
@@ -227,8 +227,12 @@ function Internal:ItemKeyFromLink(link)
 		if AuctioneerData.itemHasLevel[itemID] ~= 1 then
 			effectiveLevel = 0
 		end
-		Auctioneer:Log("link item key %d level %d (link level %d, grouped by level: %s)",
-			itemID, effectiveLevel, linkLevel, tostring(AuctioneerData.itemHasLevel[itemID]))
+		-- Tooltips rebuild constantly; log a link only when it changes, so it does not flood the log.
+		if link ~= Internal.lastLoggedLink then
+			Internal.lastLoggedLink = link
+			Auctioneer:Log("link item key %d level %d (link level %d, grouped by level: %s)",
+				itemID, effectiveLevel, linkLevel, tostring(AuctioneerData.itemHasLevel[itemID]))
+		end
 		return C_AuctionHouse.MakeItemKey(itemID, effectiveLevel, itemSuffix, 0)
 	end
 end

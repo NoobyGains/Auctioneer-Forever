@@ -220,7 +220,15 @@ function Internal:ItemKeyFromLink(link)
 		local linkBits = {strsplit(":", linkOptions)}
 		local itemID = tonumber(linkBits[1])
 		local itemSuffix = tonumber(linkBits[7]) or 0
-		local effectiveLevel = C_Item.GetDetailedItemLevelInfo(link) or 0	
+		local linkLevel = C_Item.GetDetailedItemLevelInfo(link) or 0
+		-- Scans record item level only for items the auction house groups by level;
+		-- for every other item the key a scan records has level 0, so match it.
+		local effectiveLevel = linkLevel
+		if AuctioneerData.itemHasLevel[itemID] ~= 1 then
+			effectiveLevel = 0
+		end
+		Auctioneer:Log("link item key %d level %d (link level %d, grouped by level: %s)",
+			itemID, effectiveLevel, linkLevel, tostring(AuctioneerData.itemHasLevel[itemID]))
 		return C_AuctionHouse.MakeItemKey(itemID, effectiveLevel, itemSuffix, 0)
 	end
 end

@@ -16,6 +16,7 @@ function Module:Boot(hook)
 	hook(Const.AuctionHouseOpened, Module.AuctionHouseOpened)
 	hook(Const.AuctionHouseClosed, Module.AuctionHouseClosed)
 	hook(Const.DisplayModeChanged, Module.DisplayModeChanged)
+	hook(Const.ThrottledSystemReady, Module.ThrottledSystemReady)
 
 	Module:CreateProgress()
 end
@@ -88,29 +89,51 @@ function Module:Fetch(type, results)
 	self:SetProgress(numResults/self.browseSize * 100,
 		("Getting results: %d"):format(numResults))
 
-	C_Timer.After(0.4, self.MoreResultsCallback)
+	self:RequestMore()
 end
 
-function Module:MoreResults()
+-- Ask for the next page as soon as the client's throttle allows it. When it does
+-- not, wait for AUCTION_HOUSE_THROTTLED_SYSTEM_READY, with a 1s retry as backstop
+-- in case that event never comes.
+function Module:RequestMore()
+	if not self.scanning then
+		return
+	end
 	if AuctionHouseFrame:GetDisplayMode() ~= AuctionHouseFrameDisplayMode.Buy then
-		if self.scanning then
-			self:Push()
-			self:Reset()
-		end
+		self:Push()
+		self:Reset()
 		return
 	end
 
 	if C_AuctionHouse.IsThrottledMessageSystemReady() then
+		self.waitingThrottle = false
 		C_AuctionHouse.RequestMoreBrowseResults()
 		return
 	end
 
-	C_Timer.After(0.25, self.MoreResultsCallback)
+	Auctioneer:Log("throttle wait")
+	self.waitingThrottle = true
+	if not self.backstopPending then
+		self.backstopPending = true
+		C_Timer.After(1.0, self.BackstopCallback)
+	end
+end
+
+function Module:ThrottledSystemReady()
+	if self.waitingThrottle then
+		Auctioneer:Log("throttle ready")
+		self:RequestMore()
+	end
 end
 
 -- Static callback function to use in C_Timer.After calls
-function Module.MoreResultsCallback()
-	Module:MoreResults()
+function Module.BackstopCallback()
+	local self = Module
+	self.backstopPending = false
+	if self.waitingThrottle then
+		Auctioneer:Log("throttle backstop retry")
+		self:RequestMore()
+	end
 end
 
 -- Build an item from every browse result received so far.

@@ -43,6 +43,10 @@ function Handlers:ITEM_SEARCH_RESULTS_UPDATED(...)
 	self:Trigger(Const.SearchResultsAvaliable, "updated", ...)
 end
 
+function Handlers:AUCTION_HOUSE_THROTTLED_SYSTEM_READY()
+	self:Trigger(Const.ThrottledSystemReady)
+end
+
 function Handlers:ITEM_KEY_ITEM_INFO_RECEIVED(...)
 	self:Trigger(Const.ItemKeyInfoFound, ...)
 end

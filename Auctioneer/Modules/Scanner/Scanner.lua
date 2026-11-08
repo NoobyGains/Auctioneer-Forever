@@ -11,7 +11,9 @@ Const.Trigger:Add("ScannerItemsCompleted")
 local progressFrame
 
 local PUSH_BLOCK_SIZE = 50
--- ponytail: fixed 8ms of each frame for saving statistics; tie it to the frame rate if 8ms ever stutters
+-- Soft budget for saving statistics, in ms per frame: checked after each block, so a frame can
+-- run one block over it, and the first frame also carries Collect().
+-- ponytail: fixed 8ms; tie it to the frame rate if 8ms ever stutters
 local PUSH_FRAME_BUDGET_MS = 8
 
 -- Hook our method

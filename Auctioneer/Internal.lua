@@ -240,8 +240,32 @@ function Internal:RecordVariant(itemKey)
 	variants[itemKey.itemSuffix] = itemKey.itemLevel
 end
 
-function Internal:ItemVariants(itemID)
-	return AuctioneerData.itemVariants and AuctioneerData.itemVariants[itemID]
+-- The item keys of every recorded variant of an item.
+function Internal:VariantKeys(itemID)
+	local keys = {}
+	local suffixLevels = AuctioneerData.itemVariants and AuctioneerData.itemVariants[itemID]
+	for suffix, level in pairs(suffixLevels or {}) do
+		tinsert(keys, C_AuctionHouse.MakeItemKey(itemID, level, suffix))
+	end
+	return keys
+end
+
+-- The recorded variant whose item key info name is the link's text. When none is,
+-- namesPending tells whether some variant's name has not arrived from the server yet.
+function Internal:VariantFromLink(link, itemID)
+	local name = link and select(3, LinkUtil.ExtractLink(link))
+	name = name and (name:match("^%[(.*)%]$") or name)
+
+	local namesPending = false
+	for _, variantKey in ipairs(Internal:VariantKeys(itemID)) do
+		local info = C_AuctionHouse.GetItemKeyInfo(variantKey)
+		if not info then
+			namesPending = true
+		elseif info.itemName == name then
+			return variantKey, false
+		end
+	end
+	return nil, namesPending
 end
 
 function Internal:ItemKeyFromLink(link)

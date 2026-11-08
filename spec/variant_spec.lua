@@ -52,6 +52,29 @@ describe("tooltip price of a random-suffix item", function()
 		assert.are.same({500, 900}, prices())
 	end)
 
+	it("shows no statistics once every variant name has arrived and none is the linked one", function()
+		local tigerLink = wow.link(9756, nil, "Calçotes Nômades do Tigre")
+		hover(tigerLink)
+		env.clock:runUntilIdle(env.clock.now + 1)
+		hover(tigerLink)
+		assert.are.equal("No statistics for this variant", lines[1].text)
+		assert.are.same({}, prices())
+	end)
+
+	it("counts only the variants that have a price", function()
+		AuctioneerData.itemVariants[9756][14399] = 14 -- recorded, but no price under this realm
+		hover(BEAR_LINK)
+		assert.are.equal("Statistics (all 2 variants):", lines[1].text)
+	end)
+
+	it("logs that the item key was found by variant name", function()
+		AuctioneerLocal.debug = true
+		hover(BEAR_LINK)
+		env.clock:runUntilIdle(env.clock.now + 1)
+		hover(BEAR_LINK)
+		assert.truthy(table.concat(AuctioneerLog, "\n"):find("item key 9756:14:" .. BEAR .. " via variant name", 1, true))
+	end)
+
 	it("shows the linked variant's own price once the names have arrived", function()
 		hover(BEAR_LINK)
 		env.clock:runUntilIdle(env.clock.now + 1)

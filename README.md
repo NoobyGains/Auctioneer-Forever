@@ -64,9 +64,12 @@ ForeverSVFix is no longer needed.
 * **Tooltip prices for random-suffix items** ("of the Bear", "of the Falcon"...). Scans record each variant
   separately, but a modern item link does not carry the suffix the auction house keys it by, so these never showed a
   price. Scans now remember each item's variants, and the tooltip finds the linked one by name. On the first hover,
-  while the variant names are still arriving from the server, it shows the price range across all variants.
-* **Faster statistics saving.** After a scan, statistics are saved in as many blocks per frame as fit in 8ms, instead
-  of one block per frame plus a fixed 0.5s pause (a full scan's "stats" phase went from ~3.9s to ~0.1s in game).
+  while the variant names are still arriving from the server, it shows the price range across the variants that
+  have a price.
+* **Faster statistics saving.** After a scan, statistics are saved in as many blocks per frame as fit in about 8ms,
+  instead of one block per frame plus a fixed 0.5s pause.
+* **Scan time, measured in game** on the same empty search (~9900 results, 19 pages): 35.3s before, 14.3s now
+  (item key info wait 14.1s → 0s, paging 17.4s → 14.2s, statistics 3.8s → 0.1s).
 * **Deal finder and statistics fixes.** The Deal finder no longer throws a Lua error when an item has more than one
   statistic or a statistic without a price, and it flags items below their vendor price again (for items the client
   has cached). `Auctioneer:Statistics()` accepts an item key given as a plain item number (e.g. `2589`).

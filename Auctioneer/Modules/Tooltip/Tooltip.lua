@@ -69,77 +69,70 @@ function Module:DisplayTooltip(type, tooltip, tip, ...)
 
     if not itemKey then return end
 
+	local via = "link"
 	if not AuctioneerData.itemHasLevel[itemKey.itemID] then
 		-- We have never even seen this item
 		tooltip:AddLine("Never seen at auction")
 	else
 		local stats = Auctioneer:Statistics(Auctioneer:ItemKeyKey(itemKey))
-		local variants
+		local showAllVariants = false
 		if #stats == 0 then
 			-- Random-suffix items ("of the Bear") are recorded per variant, which a link
 			-- does not carry: find the variant by name.
-			local variantKey
-			variantKey, variants = self:MatchVariant(link, itemKey)
+			local variantKey, namesPending = Auctioneer:VariantFromLink(link, itemKey.itemID)
 			if variantKey then
-				itemKey = variantKey
+				itemKey, via = variantKey, "variant name"
 				stats = Auctioneer:Statistics(Auctioneer:ItemKeyKey(itemKey))
+			elseif namesPending then
+				via, showAllVariants = "all variants (names loading)", true
 			end
 		end
 
-		if variants then
-			self:ShowAllVariants(tooltip, variants)
+		if showAllVariants then
+			self:ShowAllVariants(tooltip, Auctioneer:VariantKeys(itemKey.itemID))
 		else
 			self:ShowStats(tooltip, stats)
 		end
 	end
 
 	if Auctioneer:Debugging() then
-		self:LogKey(link, itemKey)
+		self:LogKey(link, itemKey, via)
 	end
 
 	tooltip:ClearFrame(tip)
 end
 
--- The variant of a random-suffix item whose name matches the link's text. While the
--- variant names are still on their way (first hover), returns nil and all recorded variants.
-function Module:MatchVariant(link, itemKey)
-	local variants = Auctioneer:ItemVariants(itemKey.itemID)
-	if not variants or not link then
-		return
+-- A statistic's best price, when it has one worth showing.
+local function usableBest(stat)
+	local best, number, method = stat:Best()
+	if best and number > 0 and best > 0 then
+		return best, number, method
 	end
-	local name = select(3, LinkUtil.ExtractLink(link))
-	name = name and (name:match("^%[(.*)%]$") or name)
-
-	local keys = {}
-	for suffix, level in pairs(variants) do
-		local variantKey = C_AuctionHouse.MakeItemKey(itemKey.itemID, level, suffix)
-		local info = C_AuctionHouse.GetItemKeyInfo(variantKey)
-		if info and info.itemName == name then
-			return variantKey
-		end
-		tinsert(keys, variantKey)
-	end
-	return nil, keys
 end
 
--- Price range across all variants of an item, until the linked one is known.
+-- Price range across the variants of an item that have a price, until the linked one is known.
 function Module:ShowAllVariants(tooltip, variantKeys)
-	local low, high
+	local low, high, priced = nil, nil, 0
 	for _, variantKey in ipairs(variantKeys) do
+		local hasPrice = false
 		for _, stat in ipairs(Auctioneer:Statistics(Auctioneer:ItemKeyKey(variantKey))) do
-			local best = stat:Best()
-			if best and best > 0 then
+			local best = usableBest(stat)
+			if best then
+				hasPrice = true
 				if not low or best < low then low = best end
 				if not high or best > high then high = best end
 			end
 		end
+		if hasPrice then
+			priced = priced + 1
+		end
 	end
 
-	if not low then
-		tooltip:AddLine("No statistics for this variant")
+	if priced == 0 then
+		tooltip:AddLine("No statistics for any variant")
 		return
 	end
-	tooltip:AddLine(format("Statistics (all %d variants):", #variantKeys))
+	tooltip:AddLine(format("Statistics (all %d variants):", priced))
 	tooltip:AddLine("  lowest", low)
 	tooltip:AddLine("  highest", high)
 end
@@ -147,9 +140,9 @@ end
 function Module:ShowStats(tooltip, stats)
 	local header = "Statistics:"
 	for _, stat in ipairs(stats) do
-		local best, number, method = stat:Best()
+		local best, number, method = usableBest(stat)
 
-		if best and number > 0 and best > 0 then
+		if best then
 			if IsShiftKeyDown() then
 				tooltip:AddLine(format("%s statistics:", stat.name))
 
@@ -189,7 +182,7 @@ end
 
 -- Debug log of the item key a tooltip looked up. Tooltips rebuild constantly, so each
 -- link is logged once per key (again only if a later scan changes its key).
-function Module:LogKey(link, itemKey)
+function Module:LogKey(link, itemKey, via)
 	local key = tostring(Auctioneer:ItemKeyKey(itemKey))
 	local seen = tostring(link).."="..key
 	self.loggedKeys = self.loggedKeys or {}
@@ -197,6 +190,6 @@ function Module:LogKey(link, itemKey)
 		return
 	end
 	self.loggedKeys[seen] = true
-	Auctioneer:Log("tooltip %s -> item key %s (grouped by level: %s)",
-		tostring(link), key, tostring(AuctioneerData.itemHasLevel[itemKey.itemID]))
+	Auctioneer:Log("tooltip %s -> item key %s via %s (grouped by level: %s)",
+		tostring(link), key, tostring(via), tostring(AuctioneerData.itemHasLevel[itemKey.itemID]))
 end

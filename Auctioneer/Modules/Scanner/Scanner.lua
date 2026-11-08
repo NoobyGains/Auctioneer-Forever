@@ -10,6 +10,10 @@ Const.Trigger:Add("ScannerItemsCompleted")
 
 local progressFrame
 
+local PUSH_BLOCK_SIZE = 50
+-- ponytail: fixed 8ms of each frame for saving statistics; tie it to the frame rate if 8ms ever stutters
+local PUSH_FRAME_BUDGET_MS = 8
+
 -- Hook our method
 function Module:Boot(hook)
 	hook(Const.BrowseResultsAvailable, Module.BrowseResultsAvailable)
@@ -174,31 +178,32 @@ function Module:Push()
 	self:InvertedProgress(false)
 	self:SetProgress(0, "Sending items")
 
-	-- Push the items in chunks to the stats modules.
+	-- Push the items to the stats modules in blocks, as many blocks per frame as fit in
+	-- the frame budget: a big scan is saved in a few frames without stalling the game.
 	coroutine.wrap(function ()
 		local co = coroutine.running()
 		local function resume() coroutine.resume(co) end
 
 		local pos = 1
 		local size = #items
+		local frameStart = debugprofilestop()
 		while pos <= size do
-			local to = pos + 49
-			if to > size then
-				to = size
-			end
-
-			local block = {unpack(items, pos, to)}
-			Auctioneer:Trigger(Const.ScannerItemsPush, block)
+			local to = math.min(pos + PUSH_BLOCK_SIZE - 1, size)
+			Auctioneer:Trigger(Const.ScannerItemsPush, {unpack(items, pos, to)})
 			self:SetProgress(to / size * 100, ("Statistics: %d"):format(to))
+			pos = to + 1
 
-			pos = to+1
-			C_Timer.After(0.01, resume)
-			coroutine.yield()
+			if pos <= size and debugprofilestop() - frameStart >= PUSH_FRAME_BUDGET_MS then
+				C_Timer.After(0, resume)
+				coroutine.yield()
+				frameStart = debugprofilestop()
+			end
 		end
 		-- Only the progress bar: a new scan may already be running.
 		self:ClearProgress()
 
-		C_Timer.After(0.5, resume)
+		-- The ScannerItemsCompleted listeners (Deal finder) are heavy: give them a frame of their own.
+		C_Timer.After(0, resume)
 		coroutine.yield()
 
 		if marks then

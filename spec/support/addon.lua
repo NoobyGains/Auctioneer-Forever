@@ -26,7 +26,11 @@ function addon.boot(env, opts)
 
 	local trigger = Auctioneer.Trigger
 	Auctioneer.Trigger = function(self, event, ...)
-		table.insert(A.triggers, {name = parts.Const:Name(event), at = env.clock.now, args = {...}})
+		local name = parts.Const:Name(event)
+		table.insert(A.triggers, {name = name, at = env.clock.now, args = {...}})
+		if name == "ScannerItemsPush" and env.pushCostMs then
+			env.cpuMs = env.cpuMs + env.pushCostMs -- CPU the stats modules spend per block
+		end
 		return trigger(self, event, ...)
 	end
 

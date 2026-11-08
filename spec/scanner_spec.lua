@@ -20,6 +20,27 @@ describe("scanner", function()
 		assert.is_true(res.completedAt - env.ah.fullAt < 2)
 	end)
 
+	it("saves a full scan's statistics within one second of the last page", function()
+		local res = A.scan(rows(9876))
+		assert.are.equal(9876, #res.items)
+		assert.is_true(res.completedAt - env.ah.fullAt < 1)
+	end)
+
+	it("keeps each frame's statistics work within the frame budget", function()
+		env.pushCostMs = 5
+		A.scan(rows(2000))
+		local perFrame, most = {}, 0
+		for _, t in ipairs(A.triggers) do
+			if t.name == "ScannerItemsPush" then
+				perFrame[t.at] = (perFrame[t.at] or 0) + 1
+				most = math.max(most, perFrame[t.at])
+			end
+		end
+		-- 8ms budget, plus the one block that crosses it
+		assert.is_true(most * env.pushCostMs <= 8 + env.pushCostMs)
+		assert.are.equal(2000, #pushedItems(A))
+	end)
+
 	it("pushes a single-result scan", function()
 		assert.are.equal(1, #A.scan(rows(1)).items)
 	end)

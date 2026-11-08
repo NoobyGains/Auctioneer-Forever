@@ -252,7 +252,12 @@ function wow.install()
 	_G.GetServerTime = function() return 1800000000 + math.floor(env.clock.now) end
 	_G.GetRealmName = function() return "TestRealm" end
 	_G.IsShiftKeyDown = function() return false end
-	_G.C_Timer = {After = function(delay, fn) env.clock:after(delay, fn) end}
+	-- In the client no timer fires before the next frame, whatever delay it asks for.
+	local FRAME = 1 / 60
+	_G.C_Timer = {After = function(delay, fn) env.clock:after(math.max(delay or 0, FRAME), fn) end}
+	-- CPU milliseconds; time spent inside a frame. Specs advance it (see env.pushCostMs).
+	env.cpuMs = 0
+	_G.debugprofilestop = function() return env.cpuMs end
 
 	_G.Stubby = true
 	_G.LibStub = function() return null() end

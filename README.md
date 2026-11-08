@@ -50,26 +50,27 @@ ForeverSVFix is no longer needed.
 
 ## Changes beyond the port
 
-* **Faster scans: no wait for item info.** Prices are recorded straight from the browse results. The scan used to
-  stop on every item until its name and icon arrived from the server (up to 1s each); those are now fetched only when
-  an item is shown, and the Deal finder redraws when they arrive.
+* **Faster scans: no wait for item key info.** Prices are recorded straight from the browse results. The scan used
+  to stop on every item until its item key info (name, icon, quality) arrived from the server (up to 1s each); that
+  is now fetched only when an item is shown, and the Deal finder and the Valuer redraw when it arrives.
 * **Faster scans: paging by the throttle.** The next page of results is requested as soon as the client allows it
   (`AUCTION_HOUSE_THROTTLED_SYSTEM_READY`), instead of after a fixed 0.4s pause per page.
 * **Scan edge cases.** A scan with a single result now reaches the statistics; closing the auction house mid-scan
-  keeps the pages already received; clicking Search again while statistics are still being saved no longer cuts the
-  new scan short.
+  keeps the pages already received; a new scan started while statistics are still being saved is no longer cut
+  short; a scan with no results completes.
 * **Tooltip prices for item links and crafting reagents.** The tooltip built the item key with the item's own level
   (e.g. 5 for Linen Cloth), while scans record level 0 for items the auction house does not group by level, so the
   lookup missed ("No statistics for this variant"). Links now use the same key a scan records.
 * **Deal finder and statistics fixes.** The Deal finder no longer throws a Lua error when an item has more than one
   statistic or a statistic without a price, and it flags items below their vendor price again (for items the client
-  has cached). `Auctioneer:Statistics()` accepts a numeric item ID.
+  has cached). `Auctioneer:Statistics()` accepts an item key given as a plain item number (e.g. `2589`).
 * **Debug log.** `/run AuctioneerLocal.debug = true` turns it on; `/run AuctioneerLocal.debug = false` turns it off
   (the setting persists per character). Lines show live in Blizzard's Event Trace window (`/etrace`), next to the
   auction house events, and the last 2000 are saved in `AuctioneerLog` inside
-  `WTF\Account\<ACCOUNT>\SavedVariables\Auctioneer.lua` on `/reload` or logout. Each scan logs one timing line,
-  also printed to chat:
-  `Auctioneer scan: <n> results | fetch <s>s | process <s>s | stats <s>s`.
+  `WTF\Account\<ACCOUNT>\SavedVariables\Auctioneer.lua` on `/reload` or logout. With debug on, each scan logs one
+  timing line, also printed to chat:
+  `Auctioneer scan: <n> results | fetch <s>s | process <s>s | stats <s>s`; each tooltip logs the item key it looked
+  up, once per link.
 
 ## Running the tests
 

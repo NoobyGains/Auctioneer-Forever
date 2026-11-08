@@ -224,6 +224,26 @@ function Internal:ItemGroupedByLevel(itemID)
 	return AuctioneerData.itemHasLevel[itemID] == 1
 end
 
+-- Random-suffix variants ("of the Bear") seen at auction, per itemID: {[itemSuffix] = itemLevel}.
+-- An item link does not carry the suffix the auction house keys these by.
+-- Created on first use: saved data from older versions has no itemVariants.
+function Internal:RecordVariant(itemKey)
+	if itemKey.itemSuffix == 0 then
+		return
+	end
+	AuctioneerData.itemVariants = AuctioneerData.itemVariants or {}
+	local variants = AuctioneerData.itemVariants[itemKey.itemID]
+	if not variants then
+		variants = {}
+		AuctioneerData.itemVariants[itemKey.itemID] = variants
+	end
+	variants[itemKey.itemSuffix] = itemKey.itemLevel
+end
+
+function Internal:ItemVariants(itemID)
+	return AuctioneerData.itemVariants and AuctioneerData.itemVariants[itemID]
+end
+
 function Internal:ItemKeyFromLink(link)
 	if not link then return end
 	local linkType, linkOptions, name = LinkUtil.ExtractLink(link)

@@ -162,6 +162,8 @@ function private:Booted()
 	Auctioneer.Debugging = parts.Internal.Debugging
 	Auctioneer.RecordItemLevel = parts.Internal.RecordItemLevel
 	Auctioneer.ItemGroupedByLevel = parts.Internal.ItemGroupedByLevel
+	Auctioneer.RecordVariant = parts.Internal.RecordVariant
+	Auctioneer.ItemVariants = parts.Internal.ItemVariants
 	Auctioneer.ItemKeyKey = parts.Internal.ItemKeyKey
 	Auctioneer.ItemKeyString = parts.Internal.ItemKeyString
 	Auctioneer.ItemKeyFromLink = parts.Internal.ItemKeyFromLink

@@ -150,20 +150,24 @@ local function newAH(env)
 		end
 	end
 
+	-- Item key info is per variant: cached under the itemID, or "itemID:suffix" for a
+	-- random-suffix variant, whose name comes from env.variantNames["itemID:suffix"].
 	function api.GetItemKeyInfo(itemKey)
 		ah.infoCalls = ah.infoCalls + 1
 		local id = itemKey.itemID
-		if ah.infoCache[id] then
-			return ah.infoCache[id]
+		local suffix = itemKey.itemSuffix or 0
+		local cacheKey = suffix ~= 0 and (id .. ":" .. suffix) or id
+		if ah.infoCache[cacheKey] then
+			return ah.infoCache[cacheKey]
 		end
-		if not ah.missingInfo[id] and not ah.infoScheduled[id] then
-			ah.infoScheduled[id] = true
+		if not ah.missingInfo[id] and not ah.infoScheduled[cacheKey] then
+			ah.infoScheduled[cacheKey] = true
 			local gen = ah.gen
 			env.clock:after(ah.infoLatency, function()
 				if gen ~= ah.gen then return end
 				local item = env.items[id]
-				ah.infoCache[id] = {
-					itemName = item and item.name or ("Item " .. id),
+				ah.infoCache[cacheKey] = {
+					itemName = env.variantNames[cacheKey] or item and item.name or ("Item " .. id),
 					quality = 1, iconFileID = 1,
 					isPet = false, isCommodity = false, isEquipment = false,
 				}
@@ -209,8 +213,8 @@ local function strsplit(delim, str)
 	return unpack(out)
 end
 
-function wow.link(itemID, suffix)
-	return ("|cffffffff|Hitem:%d::::::%s::|h[Item %d]|h|r"):format(itemID, suffix and tostring(suffix) or "", itemID)
+function wow.link(itemID, suffix, name)
+	return ("|cffffffff|Hitem:%d::::::%s::|h[%s]|h|r"):format(itemID, suffix and tostring(suffix) or "", name or ("Item " .. itemID))
 end
 
 function wow.petLink(speciesID)
@@ -219,7 +223,7 @@ end
 
 -- Installs fresh globals. Call once per test.
 function wow.install()
-	local env = {printed = {}, etrace = {}, loadedAddOns = {}, items = {}}
+	local env = {printed = {}, etrace = {}, loadedAddOns = {}, items = {}, variantNames = {}}
 	env.clock = newClock()
 	env.dispatch = function() end
 	env.ah = newAH(env)
@@ -238,6 +242,7 @@ function wow.install()
 	_G.format = string.format
 	_G.floor = math.floor
 	_G.tinsert = table.insert
+	_G.sort = table.sort
 	_G.date = os.date
 	_G.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 	_G.tAppendAll = function(t, src) for _, v in ipairs(src) do table.insert(t, v) end end
@@ -286,7 +291,8 @@ function wow.install()
 
 	_G.LinkUtil = {
 		ExtractLink = function(link)
-			return tostring(link):match("|H([^:]+):([^|]*)|h%[([^%]]*)%]|h")
+			-- Same pattern as the client's LinkUtil: the display text keeps its [brackets].
+			return tostring(link):match("|H([^:]*):([^|]*)|h(.*)|h")
 		end,
 	}
 

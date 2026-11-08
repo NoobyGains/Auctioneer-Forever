@@ -151,6 +151,7 @@ function Module:Collect()
 		]]
 		local itemKey = itemData.itemKey
 		Auctioneer:RecordItemLevel(itemKey)
+		Auctioneer:RecordVariant(itemKey)
 		tinsert(items, Auctioneer:Item{
 			id = Auctioneer:ItemKeyKey(itemKey),
 			itemKey = itemKey,

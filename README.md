@@ -61,6 +61,12 @@ ForeverSVFix is no longer needed.
 * **Tooltip prices for item links and crafting reagents.** The tooltip built the item key with the item's own level
   (e.g. 5 for Linen Cloth), while scans record level 0 for items the auction house does not group by level, so the
   lookup missed ("No statistics for this variant"). Links now use the same key a scan records.
+* **Tooltip prices for random-suffix items** ("of the Bear", "of the Falcon"...). Scans record each variant
+  separately, but a modern item link does not carry the suffix the auction house keys it by, so these never showed a
+  price. Scans now remember each item's variants, and the tooltip finds the linked one by name. On the first hover,
+  while the variant names are still arriving from the server, it shows the price range across all variants.
+* **Faster statistics saving.** After a scan, statistics are saved in as many blocks per frame as fit in 8ms, instead
+  of one block per frame plus a fixed 0.5s pause (a full scan's "stats" phase went from ~3.9s to ~0.1s in game).
 * **Deal finder and statistics fixes.** The Deal finder no longer throws a Lua error when an item has more than one
   statistic or a statistic without a price, and it flags items below their vendor price again (for items the client
   has cached). `Auctioneer:Statistics()` accepts an item key given as a plain item number (e.g. `2589`).

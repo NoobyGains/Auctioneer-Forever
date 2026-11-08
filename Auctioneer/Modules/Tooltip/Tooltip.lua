@@ -69,61 +69,122 @@ function Module:DisplayTooltip(type, tooltip, tip, ...)
 
     if not itemKey then return end
 
-	if Auctioneer:Debugging() then
-		self:LogKey(link, itemKey)
-	end
-
 	if not AuctioneerData.itemHasLevel[itemKey.itemID] then
 		-- We have never even seen this item
 		tooltip:AddLine("Never seen at auction")
 	else
-		local key = Auctioneer:ItemKeyKey(itemKey)
-
-		local stats = Auctioneer:Statistics(key)
-
-		local header = "Statistics:"
-		for _, stat in ipairs(stats) do
-			local best, number, method = stat:Best()
-
-			if best and number > 0 and best > 0 then
-				if IsShiftKeyDown() then
-					tooltip:AddLine(format("%s statistics:", stat.name))
-
-					tooltip:AddLine(format(" - %s", method), best)
-
-					local min, exact = stat:Minimum()
-					if exact and min == exact and method ~= "minimum" then
-						tooltip:AddLine(" - minimum", min)
-					end
-
-					local max, exact = stat:Maximum()
-					if exact and max == exact and method ~= "maximum" then
-						tooltip:AddLine(" - maximum", max)
-					end
-
-					local pct = stat:Percentile(10)
-					if pct then
-						tooltip:AddLine(" - 10th percentile", pct)
-					end
-
-					tooltip:AddLine(" - data points", "x"..number)
-				else
-					if header then
-						tooltip:AddLine(header)
-					end
-
-					tooltip:AddLine(format("  %s %s (%d)", stat.name, method, number), best)
-				end
-				header = false
+		local stats = Auctioneer:Statistics(Auctioneer:ItemKeyKey(itemKey))
+		local variants
+		if #stats == 0 then
+			-- Random-suffix items ("of the Bear") are recorded per variant, which a link
+			-- does not carry: find the variant by name.
+			local variantKey
+			variantKey, variants = self:MatchVariant(link, itemKey)
+			if variantKey then
+				itemKey = variantKey
+				stats = Auctioneer:Statistics(Auctioneer:ItemKeyKey(itemKey))
 			end
 		end
 
-		if header then
-			tooltip:AddLine("No statistics for this variant")
+		if variants then
+			self:ShowAllVariants(tooltip, variants)
+		else
+			self:ShowStats(tooltip, stats)
 		end
 	end
 
+	if Auctioneer:Debugging() then
+		self:LogKey(link, itemKey)
+	end
+
 	tooltip:ClearFrame(tip)
+end
+
+-- The variant of a random-suffix item whose name matches the link's text. While the
+-- variant names are still on their way (first hover), returns nil and all recorded variants.
+function Module:MatchVariant(link, itemKey)
+	local variants = Auctioneer:ItemVariants(itemKey.itemID)
+	if not variants or not link then
+		return
+	end
+	local name = select(3, LinkUtil.ExtractLink(link))
+	name = name and (name:match("^%[(.*)%]$") or name)
+
+	local keys = {}
+	for suffix, level in pairs(variants) do
+		local variantKey = C_AuctionHouse.MakeItemKey(itemKey.itemID, level, suffix)
+		local info = C_AuctionHouse.GetItemKeyInfo(variantKey)
+		if info and info.itemName == name then
+			return variantKey
+		end
+		tinsert(keys, variantKey)
+	end
+	return nil, keys
+end
+
+-- Price range across all variants of an item, until the linked one is known.
+function Module:ShowAllVariants(tooltip, variantKeys)
+	local low, high
+	for _, variantKey in ipairs(variantKeys) do
+		for _, stat in ipairs(Auctioneer:Statistics(Auctioneer:ItemKeyKey(variantKey))) do
+			local best = stat:Best()
+			if best and best > 0 then
+				if not low or best < low then low = best end
+				if not high or best > high then high = best end
+			end
+		end
+	end
+
+	if not low then
+		tooltip:AddLine("No statistics for this variant")
+		return
+	end
+	tooltip:AddLine(format("Statistics (all %d variants):", #variantKeys))
+	tooltip:AddLine("  lowest", low)
+	tooltip:AddLine("  highest", high)
+end
+
+function Module:ShowStats(tooltip, stats)
+	local header = "Statistics:"
+	for _, stat in ipairs(stats) do
+		local best, number, method = stat:Best()
+
+		if best and number > 0 and best > 0 then
+			if IsShiftKeyDown() then
+				tooltip:AddLine(format("%s statistics:", stat.name))
+
+				tooltip:AddLine(format(" - %s", method), best)
+
+				local min, exact = stat:Minimum()
+				if exact and min == exact and method ~= "minimum" then
+					tooltip:AddLine(" - minimum", min)
+				end
+
+				local max, exact = stat:Maximum()
+				if exact and max == exact and method ~= "maximum" then
+					tooltip:AddLine(" - maximum", max)
+				end
+
+				local pct = stat:Percentile(10)
+				if pct then
+					tooltip:AddLine(" - 10th percentile", pct)
+				end
+
+				tooltip:AddLine(" - data points", "x"..number)
+			else
+				if header then
+					tooltip:AddLine(header)
+				end
+
+				tooltip:AddLine(format("  %s %s (%d)", stat.name, method, number), best)
+			end
+			header = false
+		end
+	end
+
+	if header then
+		tooltip:AddLine("No statistics for this variant")
+	end
 end
 
 -- Debug log of the item key a tooltip looked up. Tooltips rebuild constantly, so each

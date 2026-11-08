@@ -12,6 +12,10 @@ describe("Valuer", function()
 		valuer.SellItemLoaded = function(...) shown = shown + 1; return show(...) end
 	end)
 
+	it("names its panel apart from the Deal finder's", function()
+		assert.is_truthy(_G.AuctioneerValuerFrame)
+	end)
+
 	it("shows the sell item again once its item key info arrives", function()
 		valuer:SellItemLoaded("SellItems", {})
 		env.clock:runUntilIdle(10)

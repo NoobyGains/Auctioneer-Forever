@@ -106,7 +106,7 @@ function Module:SellItemLoaded(itemType, itemLocation)
 end
 
 function Module:CreateFrame()
-	valuerFrame = CreateFrame("Frame", "AuctioneerDealFinderFrame", AuctionHouseFrame, "SimplePanelTemplate")
+	valuerFrame = CreateFrame("Frame", "AuctioneerValuerFrame", AuctionHouseFrame, "SimplePanelTemplate")
 	valuerFrame:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPRIGHT", -2, -20)
 	valuerFrame:SetPoint("BOTTOMLEFT", AuctionHouseFrame, "BOTTOMRIGHT", -2, 5)
 	valuerFrame:SetWidth(320)

@@ -44,6 +44,15 @@ function Item:Info()
 	return info
 end
 
+-- Vendor sell price, only when the client already has the item cached: asking for
+-- an uncached item sends a server request, which a scan must not do per item.
+function Item:VendorPrice()
+	local itemID = self.itemKey.itemID
+	if C_Item.IsItemDataCachedByID(itemID) then
+		return select(11, C_Item.GetItemInfo(itemID))
+	end
+end
+
 function Item:ID()
 	if not self.id then
 		self.id = Auctioneer:ItemKeyKey(self.itemKey)
@@ -93,10 +102,7 @@ function Items:InfoStruct(item)
 		end
 
 		info.inventoryType = C_Item.GetItemInventoryTypeByID(itemID)
-
-		if C_Item.IsItemDataCachedByID(itemID) then
-			info.vendorPrice = select(11, C_Item.GetItemInfo(itemID));
-		end
+		info.vendorPrice = item:VendorPrice()
 	end
 
 	if info.quality then

@@ -38,6 +38,16 @@ describe("DealFinder", function()
 		assert.are.equal("vendor", A.module("Util:DealFinder").deals[1][3])
 	end)
 
+	it("redraws once for a burst of item key info arrivals", function()
+		local finder = A.module("Util:DealFinder")
+		local draws = 0
+		finder.Display = function() draws = draws + 1 end
+		finder.deals = {}
+		for itemID = 1, 10 do env.dispatch("ITEM_KEY_ITEM_INFO_RECEIVED", itemID) end
+		env.clock:advance(0.5)
+		assert.are.equal(1, draws)
+	end)
+
 	it("skips a statistic that has no price", function()
 		statsFor = {stat(400, 10), stat(nil, 10)}
 		A.scan({{itemID = 1, minPrice = 100, totalQuantity = 1}})

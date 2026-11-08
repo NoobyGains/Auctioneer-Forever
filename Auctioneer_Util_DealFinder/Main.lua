@@ -16,10 +16,19 @@ function Module:Boot(hook)
 end
 
 -- Rows can be shown before their item key info arrives; redraw when it does.
+-- Info arrives in bursts (one event per item), so one redraw covers a burst.
+local REDRAW_DELAY = 0.1
 function Module:ItemKeyInfoFound()
-	if self.deals and resultsFrame:IsShown() then
-		self:Display()
+	if self.redrawPending then
+		return
 	end
+	self.redrawPending = true
+	C_Timer.After(REDRAW_DELAY, function()
+		self.redrawPending = false
+		if self.deals and resultsFrame:IsShown() then
+			self:Display()
+		end
+	end)
 end
 
 if not AuctioneerUtilDealFinderData then
@@ -47,15 +56,15 @@ function Module:ScannerItemsCompleted(items)
 
 		for _, stat in ipairs(stats) do
 			-- Get the 15th percentile if we can, else use the minimum.
-			local number = stat:Number()
+			local dataPoints = stat:Number()
 			local price = stat:Percentile(15, options)
 			if not price then
 				price = stat:Minimum()
 			end
 
-			if price and (not bestPrice or (price < bestPrice and number > 5 and number > bestPricePoints / 2)) then
+			if price and (not bestPrice or (price < bestPrice and dataPoints > 5 and dataPoints > bestPricePoints / 2)) then
 				bestPrice = price
-				bestPricePoints = number
+				bestPricePoints = dataPoints
 
 				if stat.spark then
 					bestSpark = stat.spark
@@ -66,10 +75,7 @@ function Module:ScannerItemsCompleted(items)
 		end
 
 		local itemPrice = item.itemData.minPrice
-		-- Vendor price only from the client cache: asking for uncached items would
-		-- send one server request per scanned item.
-		local itemID = item.itemKey.itemID
-		local vendorPrice = C_Item.IsItemDataCachedByID(itemID) and select(11, C_Item.GetItemInfo(itemID))
+		local vendorPrice = item:VendorPrice()
 
 		if vendorPrice and vendorPrice > 0 and itemPrice < vendorPrice then
 			tinsert(deals, {item, itemPrice, "vendor", vendorPrice, 0})

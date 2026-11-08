@@ -36,8 +36,21 @@ function Item:Info()
 		return self._info
 	end
 
-	self._info = Items:InfoStruct(self)
-	return self._info
+	local info = Items:InfoStruct(self)
+	-- Item key info can arrive after the item is first shown; keep the result only once it has.
+	if self.itemInfo then
+		self._info = info
+	end
+	return info
+end
+
+-- Vendor sell price, only when the client already has the item cached: asking for
+-- an uncached item sends a server request, which a scan must not do per item.
+function Item:VendorPrice()
+	local itemID = self.itemKey.itemID
+	if C_Item.IsItemDataCachedByID(itemID) then
+		return select(11, C_Item.GetItemInfo(itemID))
+	end
 end
 
 function Item:ID()
@@ -64,12 +77,14 @@ function Items:InfoStruct(item)
 		item.itemInfo = C_AuctionHouse.GetItemKeyInfo(item.itemKey)
 	end
 
-	info.name = item.itemInfo.itemName
-	info.icon = item.itemInfo.iconFileID
-	info.quality = item.itemInfo.quality
+	-- Item key info is fetched lazily and may not have arrived yet.
+	local keyInfo = item.itemInfo or {}
+	info.name = keyInfo.itemName
+	info.icon = keyInfo.iconFileID
+	info.quality = keyInfo.quality
 
 	if item.itemKey.battlePetSpeciesID > 0 then
-		info.link = item.itemInfo.battlePetLink
+		info.link = keyInfo.battlePetLink
 	else
 		if item.itemData then
 			info.link = item.itemData.appearanceLink
@@ -87,10 +102,7 @@ function Items:InfoStruct(item)
 		end
 
 		info.inventoryType = C_Item.GetItemInventoryTypeByID(itemID)
-
-		if C_Item.IsItemDataCachedByID(itemID) then
-			info.vendorPrice = select(11, C_Item.GetItemInfo(itemID));
-		end
+		info.vendorPrice = item:VendorPrice()
 	end
 
 	if info.quality then
@@ -105,9 +117,9 @@ function Items:InfoStruct(item)
 
 	if not info.name then
 		if info.link then
-			info.name = select(3, LinkUtil.ExtractLink(link))
+			info.name = select(3, LinkUtil.ExtractLink(info.link))
 		else
-			info.name = info.itemString
+			info.name = Auctioneer:ItemKeyString(item.itemKey)
 		end
 	end
 

@@ -158,6 +158,13 @@ function private:Booted()
 
 	Auctioneer.Dump = parts.Internal.Dump
 	Auctioneer.DumpOne = parts.Internal.DumpOne
+	Auctioneer.Log = parts.Internal.Log
+	Auctioneer.Debugging = parts.Internal.Debugging
+	Auctioneer.RecordItemLevel = parts.Internal.RecordItemLevel
+	Auctioneer.ItemGroupedByLevel = parts.Internal.ItemGroupedByLevel
+	Auctioneer.RecordVariant = parts.Internal.RecordVariant
+	Auctioneer.VariantKeys = parts.Internal.VariantKeys
+	Auctioneer.VariantFromLink = parts.Internal.VariantFromLink
 	Auctioneer.ItemKeyKey = parts.Internal.ItemKeyKey
 	Auctioneer.ItemKeyString = parts.Internal.ItemKeyString
 	Auctioneer.ItemKeyFromLink = parts.Internal.ItemKeyFromLink

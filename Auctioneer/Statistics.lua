@@ -403,7 +403,7 @@ function Statistics:Stats(id)
 	local t = type(id)
 	if t == "number" then
 		-- We have been passed the itemID as a number, convert to the string.
-		id = tostring(number)
+		id = tostring(id)
 	elseif t == "table" then
 		-- We have been passed a table, expect it to be an itemKey:
 		--  {itemID, itemLevel, itemSuffix, battlePetSpeciesID}

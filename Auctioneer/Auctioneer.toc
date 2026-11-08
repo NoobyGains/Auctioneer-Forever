@@ -5,7 +5,7 @@
 ## LoadOnDemand: 0
 ## Dependencies: Stubby
 ## OptionalDependencies: !nLog, SlideBar, Configator, Babylonian, DebugLib, TipHelper, LibExtraTip, LibDataBroker
-## SavedVariables: AuctioneerConfig, AuctioneerData, AuctioneerServers
+## SavedVariables: AuctioneerConfig, AuctioneerData, AuctioneerServers, AuctioneerLog
 ## SavedVariablesPerCharacter: AuctioneerLocal
 ##
 ## Version: 12.x.x (Midnight)

@@ -11,6 +11,7 @@ Internal.hookEvents = {
 	'AUCTION_HOUSE_DISABLED',
 	'AUCTION_HOUSE_FAVORITES_UPDATED',
 	'AUCTION_HOUSE_SCRIPT_DEPRECATED',
+	'AUCTION_HOUSE_THROTTLED_SYSTEM_READY',
 	-- 'AUCTION_HOUSE_SHOW', -- Already registered, and don't want to unregister.
 	'AUCTION_MULTISELL_FAILURE',
 	'AUCTION_MULTISELL_START',
@@ -89,6 +90,36 @@ function Internal:Copy(what)
 		copy[k] = v
 	end
 	return copy
+end
+
+-- Debug log, only when AuctioneerLocal.debug is true. Each line goes to Blizzard's
+-- Event Trace window (/etrace) and to the AuctioneerLog saved variable, which the
+-- client writes to WTF\Account\<ACCOUNT>\SavedVariables\Auctioneer.lua on /reload or logout.
+local LOG_MAX_LINES = 2000
+function Internal:Debugging()
+	return (AuctioneerLocal and AuctioneerLocal.debug) and true or false
+end
+
+function Internal:Log(fmt, ...)
+	if not Internal:Debugging() then
+		return
+	end
+	local msg = fmt:format(...)
+
+	if not EventTrace and not Internal.eventTraceLoadTried then
+		Internal.eventTraceLoadTried = true
+		C_AddOns.LoadAddOn("Blizzard_EventTrace")
+	end
+	if EventTrace and EventTrace.LogMessage then
+		EventTrace:LogMessage("Auctioneer: "..msg)
+	end
+
+	AuctioneerLog = AuctioneerLog or {}
+	tinsert(AuctioneerLog, date("%H:%M:%S").." "..format("%.3f", GetTime()).." "..msg)
+	while #AuctioneerLog > LOG_MAX_LINES do
+		-- ponytail: O(n) trim, fine at 2000 lines; ring index if the cap grows
+		table.remove(AuctioneerLog, 1)
+	end
 end
 
 -- Add the module to our list.
@@ -178,6 +209,65 @@ function Internal:ItemKeyString(itemKey)
 	)
 end
 
+-- Whether the auction house groups an item by level, learned from scans and kept
+-- per itemID in AuctioneerData.itemHasLevel: 1 grouped, 0 not grouped, nil never scanned.
+function Internal:RecordItemLevel(itemKey)
+	local hasLevel = AuctioneerData.itemHasLevel[itemKey.itemID]
+	if itemKey.itemLevel > 0 and hasLevel ~= 1 then
+		AuctioneerData.itemHasLevel[itemKey.itemID] = 1
+	elseif not hasLevel then
+		AuctioneerData.itemHasLevel[itemKey.itemID] = 0
+	end
+end
+
+function Internal:ItemGroupedByLevel(itemID)
+	return AuctioneerData.itemHasLevel[itemID] == 1
+end
+
+-- Random-suffix variants ("of the Bear") seen at auction, per itemID: {[itemSuffix] = itemLevel}.
+-- An item link does not carry the suffix the auction house keys these by.
+-- Created on first use: saved data from older versions has no itemVariants.
+function Internal:RecordVariant(itemKey)
+	if itemKey.itemSuffix == 0 then
+		return
+	end
+	AuctioneerData.itemVariants = AuctioneerData.itemVariants or {}
+	local variants = AuctioneerData.itemVariants[itemKey.itemID]
+	if not variants then
+		variants = {}
+		AuctioneerData.itemVariants[itemKey.itemID] = variants
+	end
+	variants[itemKey.itemSuffix] = itemKey.itemLevel
+end
+
+-- The item keys of every recorded variant of an item.
+function Internal:VariantKeys(itemID)
+	local keys = {}
+	local suffixLevels = AuctioneerData.itemVariants and AuctioneerData.itemVariants[itemID]
+	for suffix, level in pairs(suffixLevels or {}) do
+		tinsert(keys, C_AuctionHouse.MakeItemKey(itemID, level, suffix))
+	end
+	return keys
+end
+
+-- The recorded variant whose item key info name is the link's text. When none is,
+-- namesPending tells whether some variant's name has not arrived from the server yet.
+function Internal:VariantFromLink(link, itemID)
+	local name = link and select(3, LinkUtil.ExtractLink(link))
+	name = name and (name:match("^%[(.*)%]$") or name)
+
+	local namesPending = false
+	for _, variantKey in ipairs(Internal:VariantKeys(itemID)) do
+		local info = C_AuctionHouse.GetItemKeyInfo(variantKey)
+		if not info then
+			namesPending = true
+		elseif info.itemName == name then
+			return variantKey, false
+		end
+	end
+	return nil, namesPending
+end
+
 function Internal:ItemKeyFromLink(link)
 	if not link then return end
 	local linkType, linkOptions, name = LinkUtil.ExtractLink(link)
@@ -193,8 +283,13 @@ function Internal:ItemKeyFromLink(link)
 		local linkBits = {strsplit(":", linkOptions)}
 		local itemID = tonumber(linkBits[1])
 		local itemSuffix = tonumber(linkBits[7]) or 0
-		local effectiveLevel = C_Item.GetDetailedItemLevelInfo(link) or 0	
-		return C_AuctionHouse.MakeItemKey(itemID, effectiveLevel, itemSuffix, 0)
+		-- Scans record item level only for items the auction house groups by level;
+		-- for every other item the key a scan records has level 0, so match it.
+		local itemLevel = 0
+		if Internal:ItemGroupedByLevel(itemID) then
+			itemLevel = C_Item.GetDetailedItemLevelInfo(link) or 0
+		end
+		return C_AuctionHouse.MakeItemKey(itemID, itemLevel, itemSuffix, 0)
 	end
 end
 function Internal:ItemKeyKey(itemKey)

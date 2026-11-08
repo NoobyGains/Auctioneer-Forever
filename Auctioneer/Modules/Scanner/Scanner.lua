@@ -10,33 +10,33 @@ Const.Trigger:Add("ScannerItemsCompleted")
 
 local progressFrame
 
-local PROCESS_TIMER_TIMEOUT = 1.0
-local PROCESS_TIMER_STEP = 1.0
+local PUSH_BLOCK_SIZE = 50
+-- Soft budget for saving statistics, in ms per frame: checked after each block, so a frame can
+-- run one block over it, and the first frame also carries Collect().
+-- ponytail: fixed 8ms; tie it to the frame rate if 8ms ever stutters
+local PUSH_FRAME_BUDGET_MS = 8
 
 -- Hook our method
 function Module:Boot(hook)
 	hook(Const.BrowseResultsAvailable, Module.BrowseResultsAvailable)
-	hook(Const.ItemKeyInfoFound, Module.ItemKeyInfoFound)
 	hook(Const.AuctionHouseOpened, Module.AuctionHouseOpened)
 	hook(Const.AuctionHouseClosed, Module.AuctionHouseClosed)
 	hook(Const.DisplayModeChanged, Module.DisplayModeChanged)
+	hook(Const.ThrottledSystemReady, Module.ThrottledSystemReady)
 
 	Module:CreateProgress()
 end
 
 -- Our job:
---   When the browse page updates, step through all available items.
---   Collect the information for the items.
---   Trigger a statistic update when the results are processed.
+--   Page through the browse results until the auction house has sent them all.
+--   Build an item from each browse result. Item key info (name, icon, quality)
+--   is not needed to record prices, so the scan never waits for it; display
+--   code fetches it lazily.
+--   Push the items to the statistics modules.
 
 function Module:BrowseResultsAvailable(type, results)
 	-- We have some browse results here, so lets process them.
 	self:Fetch(type, results)
-end
-
-function Module:ItemKeyInfoFound(itemID)
-	-- We have some browse results here, so lets process them.
-	self:Process(itemID)
 end
 
 function Module:AuctionHouseOpened()
@@ -69,30 +69,23 @@ function Module:Fetch(type, results)
 
 	if type == "updated" then
 		self.scanning = true
-		self.processing = false
 		self.browseResults = C_AuctionHouse.GetBrowseResults()
 		self.browseSize = 12000
 		self:InvertedProgress(false)
+		self.marks = {}
+		self:Mark("start")
+		Auctioneer:Log("scan started")
 	elseif not self.scanning then
 		return
 	else
 		tAppendAll(self.browseResults, results)
+		Auctioneer:Log("page received: %d results so far", #self.browseResults)
 	end
 
 	local numResults = #self.browseResults
 	if C_AuctionHouse.HasFullBrowseResults() then
-		if numResults > 0 then
-			self:InvertedProgress(true)
-			self:SetProgress(0, ("Getting results: %d"):format(numResults))
-			self.processing = true
-			self.browsePosition = 1
-			self.browseSize = numResults
-			self.batchPosition = 0
-			self.items = {}
-			self.lastInfoFailed = false
-			self:Next()
-		end
-		return
+		self:Mark("fetched")
+		return self:Push()
 	end
 
 	if numResults > self.browseSize - 1000 then
@@ -102,215 +95,124 @@ function Module:Fetch(type, results)
 	self:SetProgress(numResults/self.browseSize * 100,
 		("Getting results: %d"):format(numResults))
 
-	C_Timer.After(0.4, self.MoreResultsCallback)
+	self:RequestMore()
 end
 
-function Module:MoreResults()
+-- Ask for the next page as soon as the client's throttle allows it. When it does
+-- not, wait for AUCTION_HOUSE_THROTTLED_SYSTEM_READY, with a 1s retry as backstop
+-- in case that event never comes.
+function Module:RequestMore()
+	if not self.scanning then
+		return
+	end
 	if AuctionHouseFrame:GetDisplayMode() ~= AuctionHouseFrameDisplayMode.Buy then
-		if self.scanning then
-			self:Push()
-			self:Reset()
-		end
+		self:Push()
+		self:Reset()
 		return
 	end
 
 	if C_AuctionHouse.IsThrottledMessageSystemReady() then
+		self.waitingThrottle = false
 		C_AuctionHouse.RequestMoreBrowseResults()
 		return
 	end
 
-	C_Timer.After(0.25, self.MoreResultsCallback)
+	Auctioneer:Log("throttle wait")
+	self.waitingThrottle = true
+	if not self.backstopPending then
+		self.backstopPending = true
+		C_Timer.After(1.0, self.BackstopCallback)
+	end
+end
+
+-- Retry the page request we are holding back for the throttle, if any.
+function Module:ResumeAfterThrottle(reason)
+	if self.waitingThrottle then
+		Auctioneer:Log(reason)
+		self:RequestMore()
+	end
+end
+
+function Module:ThrottledSystemReady()
+	self:ResumeAfterThrottle("throttle ready")
 end
 
 -- Static callback function to use in C_Timer.After calls
-function Module.MoreResultsCallback()
-	Module:MoreResults()
+function Module.BackstopCallback()
+	Module.backstopPending = false
+	Module:ResumeAfterThrottle("throttle backstop retry")
 end
 
--- Processes one item from the browseResults list.
-function Module:Next()
-	if not self.scanning or not self.processing then
-		return
+-- Build an item from every browse result received so far.
+function Module:Collect()
+	local items = {}
+	for _, itemData in ipairs(self.browseResults or {}) do
+		--[[
+		itemData = { itemKey, appearanceLink, totalQuantity, minPrice, containsOwnerItem }
+		itemKey = { itemID, itemLevel, itemSuffix, battlePetSpeciesID }
+		]]
+		local itemKey = itemData.itemKey
+		Auctioneer:RecordItemLevel(itemKey)
+		Auctioneer:RecordVariant(itemKey)
+		tinsert(items, Auctioneer:Item{
+			id = Auctioneer:ItemKeyKey(itemKey),
+			itemKey = itemKey,
+			itemData = itemData,
+		})
 	end
-
-	self:SetProgress(self.browsePosition / self.browseSize * 100,
-		("Processing results: %d"):format(self.browsePosition))
-
-	-- Batch load the next 50 items if we're in new waters.
-	if self.batchPosition < self.browsePosition then
-		for i=1,50 do
-			if self.browsePosition + i < self.browseSize then
-				local futureItem = self.browseResults[self.browsePosition + i]
-				if futureItem and futureItem.itemKey then
-					C_AuctionHouse.GetItemKeyInfo(futureItem.itemKey)
-				end
-			end
-		end
-		self.batchPosition = self.batchPosition + 50
-	end
-
-	local itemData = self.browseResults[self.browsePosition]
-	--[[
-	{ Name = "itemKey", Type = "ItemKey", Nilable = false },
-	{ Name = "appearanceLink", Type = "string", Nilable = true },
-	{ Name = "totalQuantity", Type = "number", Nilable = false },
-	{ Name = "minPrice", Type = "number", Nilable = false },
-	{ Name = "containsOwnerItem", Type = "bool", Nilable = false },
-	]]
-
-	if not itemData then
-		-- We have reached the end
-		self:SetProgress(100, "Finished")
-		self:Push()
-		return
-	end
-
-	self.processing = itemData
-	return self:Process() -- tailcall to avoid building up the call stack
+	return items
 end
 
--- Process the current item for our items.
-function Module:Process(itemID)
-	if not self.processing then
-		return
-	end
-
-	local itemKey = self.processing.itemKey
-	--[[
-	{ Name = "itemID", Type = "number", Nilable = false },
-	{ Name = "itemLevel", Type = "number", Nilable = false, Default = 0 },
-	{ Name = "itemSuffix", Type = "number", Nilable = false, Default = 0 },
-	{ Name = "battlePetSpeciesID", Type = "number", Nilable = false, Default = 0 },
-	]]
-	if not itemKey then
-		return
-	end
-
-	local hasLevel = AuctioneerData.itemHasLevel[itemKey.itemID]
-	if itemKey.itemLevel > 0 and hasLevel ~= 1 then
-		AuctioneerData.itemHasLevel[itemKey.itemID] = 1
-	elseif not hasLevel then
-		AuctioneerData.itemHasLevel[itemKey.itemID] = 0
-	end
-
-	-- If we got an itemID in the call, check to make sure we process the same item.
-	if itemID and itemID ~= itemKey.itemID then
-		return
-	end
-
-	-- Check to see if the itemInfo is available.
-	local itemInfo = C_AuctionHouse.GetItemKeyInfo(itemKey)
-	--[[
-		{ Name = "itemName", Type = "string", Nilable = false },
-		{ Name = "battlePetLink", Type = "string", Nilable = true },
-		{ Name = "quality", Type = "number", Nilable = false },
-		{ Name = "iconFileID", Type = "number", Nilable = false },
-		{ Name = "isPet", Type = "bool", Nilable = false },
-		{ Name = "isCommodity", Type = "bool", Nilable = false },
-		{ Name = "isEquipment", Type = "bool", Nilable = false },
-	]]
-
-	if not itemInfo then
-		-- The information hasn't arrived yet, in most cases it will arrive eventually...
-		-- Rarely the server will fail to return the info; we need to detect this using a timeout
-		if self.lastInfoFailed then
-			if GetTime() - self.lastInfoFailed > PROCESS_TIMER_TIMEOUT then
-				-- Item has timed out, assume the server will never send the info
-				-- Skip this item and progress to next item
-				self.browsePosition = self.browsePosition + 1
-				self.lastInfoFailed = false
-				return self:Next() -- tailcall to avoid building up the call stack
-			end
-		else
-			self.lastInfoFailed = GetTime() -- store the time of the *first* failure for this item
-		end
-
-		if not self.isProcessTimerRunning then
-			-- only start a new timer if no timer is currently running
-			self.isProcessTimerRunning = true
-			C_Timer.After(PROCESS_TIMER_STEP, self.BackupTimerCallback)
-		end
-		return
-	end
-
-	self.lastInfoFailed = false
-
-	-- Add the items.
-	self:Add(itemKey, itemInfo, self.processing)
-
-	-- Progress to the next item.
-	self.browsePosition = self.browsePosition + 1
-	return self:Next() -- tailcall to avoid building up the call stack
-end
-
--- Add the given item to the items.
-function Module:Add(itemKey, itemInfo, itemData)
-	local item = Auctioneer:Item{
-		id = Auctioneer:ItemKeyKey(itemKey),
-		itemKey = itemKey,
-		itemInfo = itemInfo,
-		itemData = itemData,
-	}
-	--[[
-		item = {
-			id: string,
-			itemKey: { itemID, itemLevel, itemSuffix, battlePetSpeciesID },
-			itemInfo: { itemName, battlePetLink, quality, iconFileID, isPet, isCommodity, isEquipment },
-			itemData: { itemKey, appearanceLink, totalQuantity, minPrice, containsOwnerItem },
-		}
-	]]
-
-	tinsert(self.items, item)
-end
-
--- Static function used to handle timeouts while processing
--- Calls Module:Process periodically with a short delay, enabling it to check for a timeout
-function Module.BackupTimerCallback()
-	local self = Module -- called with no arguments, need to create 'self'
-	self.isProcessTimerRunning = false
-	self:Process()
-end
-
-
--- Collate the current items and push to the stats modules.
+-- Collate the browse results received so far and push them to the stats modules.
 function Module:Push()
-	self.processing = false
-
-	if not self.items then
+	if not self.scanning then
 		return
+	end
+	self.scanning = false
+
+	local items = self:Collect()
+	-- This scan's timing travels with its push: a new scan may start meanwhile.
+	local marks = self.marks
+	self.marks = nil
+	if marks then
+		marks.processed = GetTime()
 	end
 
 	self:InvertedProgress(false)
 	self:SetProgress(0, "Sending items")
-	local items = self.items
-	self.items = false
 
-	-- Push the items in chunks to the stats modules.
+	-- Push the items to the stats modules in blocks, as many blocks per frame as fit in
+	-- the frame budget: a big scan is saved in a few frames without stalling the game.
 	coroutine.wrap(function ()
 		local co = coroutine.running()
 		local function resume() coroutine.resume(co) end
 
 		local pos = 1
 		local size = #items
-		while pos < size do
-			local to = pos + 49
-			if to > size then
-				to = size
-			end
-
-			local block = {unpack(items, pos, to)}
-			Auctioneer:Trigger(Const.ScannerItemsPush, block)
+		local frameStart = debugprofilestop()
+		while pos <= size do
+			local to = math.min(pos + PUSH_BLOCK_SIZE - 1, size)
+			Auctioneer:Trigger(Const.ScannerItemsPush, {unpack(items, pos, to)})
 			self:SetProgress(to / size * 100, ("Statistics: %d"):format(to))
+			pos = to + 1
 
-			pos = to+1
-			C_Timer.After(0.01, resume)
-			coroutine.yield()
+			if pos <= size and debugprofilestop() - frameStart >= PUSH_FRAME_BUDGET_MS then
+				C_Timer.After(0, resume)
+				coroutine.yield()
+				frameStart = debugprofilestop()
+			end
 		end
-		self:Reset()
+		-- Only the progress bar: a new scan may already be running.
+		self:ClearProgress()
 
-		C_Timer.After(0.5, resume)
+		-- The ScannerItemsCompleted listeners (Deal finder) are heavy: give them a frame of their own.
+		C_Timer.After(0, resume)
 		coroutine.yield()
 
+		if marks then
+			marks.pushed = GetTime()
+		end
+		self:ReportTiming(#items, marks)
 		Auctioneer:Trigger(Const.ScannerItemsCompleted, items)
 	end)()
 end
@@ -318,9 +220,27 @@ end
 -- Reset state.
 function Module:Reset()
 	self.scanning = false
-	self.processing = false
-	self.items = false
 	self:ClearProgress()
+end
+
+-- Scan timing: phases are marked as the scan goes; one line per finished scan.
+function Module:Mark(phase)
+	if self.marks then
+		self.marks[phase] = GetTime()
+	end
+end
+
+function Module:ReportTiming(count, marks)
+	if not Auctioneer:Debugging() then
+		return
+	end
+	if not (marks and marks.start and marks.fetched and marks.processed and marks.pushed) then
+		return
+	end
+	local line = format("Auctioneer scan: %d results | fetch %.1fs | process %.1fs | stats %.1fs",
+		count, marks.fetched - marks.start, marks.processed - marks.fetched, marks.pushed - marks.processed)
+	Auctioneer:Log("%s", line)
+	print(line)
 end
 
 function Module:CreateProgress()

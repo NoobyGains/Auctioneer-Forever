@@ -45,6 +45,7 @@ Const.Trigger:Add("ReplicateItemsAvaliable")
 Const.Trigger:Add("BrowseResultsAvailable")
 Const.Trigger:Add("SearchResultsAvaliable")
 Const.Trigger:Add("ItemKeyInfoFound")
+Const.Trigger:Add("ThrottledSystemReady")
 
 -- Other events.
 Const.Trigger:Add("DisplayTooltip")

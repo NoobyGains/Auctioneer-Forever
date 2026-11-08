@@ -11,7 +11,17 @@ local gui = Auctioneer.GUI
 function Module:Boot(hook)
 	hook(Const.DisplayModeChanged, Module.DisplayModeChanged)
 	hook(Const.SellItemLoaded, Module.SellItemLoaded)
+	hook(Const.ItemKeyInfoFound, Module.ItemKeyInfoFound)
 	Module:CreateFrame()
+end
+
+-- The sell item can be shown before its item key info arrives; show it again when it does.
+function Module:ItemKeyInfoFound(itemID)
+	local waiting = self.waitingInfo
+	if waiting and waiting.itemID == itemID then
+		self.waitingInfo = nil
+		self:SellItemLoaded(waiting.itemType, waiting.itemLocation)
+	end
 end
 
 if not AuctioneerUtilValuerData then
@@ -43,6 +53,10 @@ function Module:SellItemLoaded(itemType, itemLocation)
 	}
 
 	local info = item:Info()
+	self.waitingInfo = nil
+	if not item.itemInfo then
+		self.waitingInfo = {itemID = itemKey.itemID, itemType = itemType, itemLocation = itemLocation}
+	end
 
 	local detail = valuerFrame.detail
 	self:ShowFrame(detail)
@@ -146,5 +160,6 @@ function Module:ShowFrame(show)
 end
 
 function Module:Hide()
+	self.waitingInfo = nil
 	valuerFrame:Hide()
 end

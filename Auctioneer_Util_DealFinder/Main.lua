@@ -10,8 +10,16 @@ local resultsFrame
 function Module:Boot(hook)
 	hook(Const.ScannerItemsCompleted, Module.ScannerItemsCompleted)
 	hook(Const.DisplayModeChanged, Module.DisplayModeChanged)
+	hook(Const.ItemKeyInfoFound, Module.ItemKeyInfoFound)
 
 	Module:CreateResults()
+end
+
+-- Rows can be shown before their item key info arrives; redraw when it does.
+function Module:ItemKeyInfoFound()
+	if self.deals and resultsFrame:IsShown() then
+		self:Display()
+	end
 end
 
 if not AuctioneerUtilDealFinderData then

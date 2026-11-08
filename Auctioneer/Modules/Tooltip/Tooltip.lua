@@ -69,6 +69,10 @@ function Module:DisplayTooltip(type, tooltip, tip, ...)
 
     if not itemKey then return end
 
+	if Auctioneer:Debugging() then
+		self:LogKey(link, itemKey)
+	end
+
 	if not AuctioneerData.itemHasLevel[itemKey.itemID] then
 		-- We have never even seen this item
 		tooltip:AddLine("Never seen at auction")
@@ -120,4 +124,18 @@ function Module:DisplayTooltip(type, tooltip, tip, ...)
 	end
 
 	tooltip:ClearFrame(tip)
+end
+
+-- Debug log of the item key a tooltip looked up. Tooltips rebuild constantly, so each
+-- link is logged once per key (again only if a later scan changes its key).
+function Module:LogKey(link, itemKey)
+	local key = tostring(Auctioneer:ItemKeyKey(itemKey))
+	local seen = tostring(link).."="..key
+	self.loggedKeys = self.loggedKeys or {}
+	if self.loggedKeys[seen] then
+		return
+	end
+	self.loggedKeys[seen] = true
+	Auctioneer:Log("tooltip %s -> item key %s (grouped by level: %s)",
+		tostring(link), key, tostring(AuctioneerData.itemHasLevel[itemKey.itemID]))
 end

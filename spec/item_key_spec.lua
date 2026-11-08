@@ -34,18 +34,6 @@ describe("item key from a link", function()
 		assert.are.equal(res.items[1].id, keyOf(wow.link(2589)))
 	end)
 
-	it("logs a link's item key once while the same tooltip keeps refreshing", function()
-		AuctioneerLocal.debug = true
-		env.items[2589] = {level = 5}
-		keyOf(wow.link(2589))
-		keyOf(wow.link(2589))
-		local n = 0
-		for _, line in ipairs(AuctioneerLog) do
-			if line:find("link item key", 1, true) then n = n + 1 end
-		end
-		assert.are.equal(1, n)
-	end)
-
 	it("leaves battle pet keys unchanged", function()
 		assert.are.equal(":::1234", keyOf(wow.petLink(1234)))
 	end)

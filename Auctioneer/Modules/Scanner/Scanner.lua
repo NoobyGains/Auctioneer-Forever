@@ -119,21 +119,22 @@ function Module:RequestMore()
 	end
 end
 
-function Module:ThrottledSystemReady()
+-- Retry the page request we are holding back for the throttle, if any.
+function Module:ResumeAfterThrottle(reason)
 	if self.waitingThrottle then
-		Auctioneer:Log("throttle ready")
+		Auctioneer:Log(reason)
 		self:RequestMore()
 	end
 end
 
+function Module:ThrottledSystemReady()
+	self:ResumeAfterThrottle("throttle ready")
+end
+
 -- Static callback function to use in C_Timer.After calls
 function Module.BackstopCallback()
-	local self = Module
-	self.backstopPending = false
-	if self.waitingThrottle then
-		Auctioneer:Log("throttle backstop retry")
-		self:RequestMore()
-	end
+	Module.backstopPending = false
+	Module:ResumeAfterThrottle("throttle backstop retry")
 end
 
 -- Build an item from every browse result received so far.
@@ -145,15 +146,7 @@ function Module:Collect()
 		itemKey = { itemID, itemLevel, itemSuffix, battlePetSpeciesID }
 		]]
 		local itemKey = itemData.itemKey
-
-		-- Remember whether the auction house groups this item by level.
-		local hasLevel = AuctioneerData.itemHasLevel[itemKey.itemID]
-		if itemKey.itemLevel > 0 and hasLevel ~= 1 then
-			AuctioneerData.itemHasLevel[itemKey.itemID] = 1
-		elseif not hasLevel then
-			AuctioneerData.itemHasLevel[itemKey.itemID] = 0
-		end
-
+		Auctioneer:RecordItemLevel(itemKey)
 		tinsert(items, Auctioneer:Item{
 			id = Auctioneer:ItemKeyKey(itemKey),
 			itemKey = itemKey,
@@ -229,15 +222,15 @@ function Module:Mark(phase)
 	end
 end
 
-function Module:ReportTiming(count, m)
-	if not (AuctioneerLocal and AuctioneerLocal.debug) then
+function Module:ReportTiming(count, marks)
+	if not Auctioneer:Debugging() then
 		return
 	end
-	if not (m and m.start and m.fetched and m.processed and m.pushed) then
+	if not (marks and marks.start and marks.fetched and marks.processed and marks.pushed) then
 		return
 	end
 	local line = format("Auctioneer scan: %d results | fetch %.1fs | process %.1fs | stats %.1fs",
-		count, m.fetched - m.start, m.processed - m.fetched, m.pushed - m.processed)
+		count, marks.fetched - marks.start, marks.processed - marks.fetched, marks.pushed - marks.processed)
 	Auctioneer:Log("%s", line)
 	print(line)
 end

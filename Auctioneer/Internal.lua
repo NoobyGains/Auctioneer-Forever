@@ -96,8 +96,12 @@ end
 -- Event Trace window (/etrace) and to the AuctioneerLog saved variable, which the
 -- client writes to WTF\Account\<ACCOUNT>\SavedVariables\Auctioneer.lua on /reload or logout.
 local LOG_MAX_LINES = 2000
+function Internal:Debugging()
+	return (AuctioneerLocal and AuctioneerLocal.debug) and true or false
+end
+
 function Internal:Log(fmt, ...)
-	if not (AuctioneerLocal and AuctioneerLocal.debug) then
+	if not Internal:Debugging() then
 		return
 	end
 	local msg = fmt:format(...)
@@ -205,6 +209,21 @@ function Internal:ItemKeyString(itemKey)
 	)
 end
 
+-- Whether the auction house groups an item by level, learned from scans and kept
+-- per itemID in AuctioneerData.itemHasLevel: 1 grouped, 0 not grouped, nil never scanned.
+function Internal:RecordItemLevel(itemKey)
+	local hasLevel = AuctioneerData.itemHasLevel[itemKey.itemID]
+	if itemKey.itemLevel > 0 and hasLevel ~= 1 then
+		AuctioneerData.itemHasLevel[itemKey.itemID] = 1
+	elseif not hasLevel then
+		AuctioneerData.itemHasLevel[itemKey.itemID] = 0
+	end
+end
+
+function Internal:ItemGroupedByLevel(itemID)
+	return AuctioneerData.itemHasLevel[itemID] == 1
+end
+
 function Internal:ItemKeyFromLink(link)
 	if not link then return end
 	local linkType, linkOptions, name = LinkUtil.ExtractLink(link)
@@ -220,20 +239,13 @@ function Internal:ItemKeyFromLink(link)
 		local linkBits = {strsplit(":", linkOptions)}
 		local itemID = tonumber(linkBits[1])
 		local itemSuffix = tonumber(linkBits[7]) or 0
-		local linkLevel = C_Item.GetDetailedItemLevelInfo(link) or 0
 		-- Scans record item level only for items the auction house groups by level;
 		-- for every other item the key a scan records has level 0, so match it.
-		local effectiveLevel = linkLevel
-		if AuctioneerData.itemHasLevel[itemID] ~= 1 then
-			effectiveLevel = 0
+		local itemLevel = 0
+		if Internal:ItemGroupedByLevel(itemID) then
+			itemLevel = C_Item.GetDetailedItemLevelInfo(link) or 0
 		end
-		-- Tooltips rebuild constantly; log a link only when it changes, so it does not flood the log.
-		if link ~= Internal.lastLoggedLink then
-			Internal.lastLoggedLink = link
-			Auctioneer:Log("link item key %d level %d (link level %d, grouped by level: %s)",
-				itemID, effectiveLevel, linkLevel, tostring(AuctioneerData.itemHasLevel[itemID]))
-		end
-		return C_AuctionHouse.MakeItemKey(itemID, effectiveLevel, itemSuffix, 0)
+		return C_AuctionHouse.MakeItemKey(itemID, itemLevel, itemSuffix, 0)
 	end
 end
 function Internal:ItemKeyKey(itemKey)
